@@ -1,3 +1,5 @@
+use computer_graphics_practice::run;
+
 fn main() {
-    println!("Hello, world!");
+    run();
 }

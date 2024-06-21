@@ -86,7 +86,7 @@ impl Component for App {
         html! {
             <div>
                 <h1>{"Hello, Computer Graphics"}</h1>
-                <canvas ref={self.canvas.clone()} id="canvas" width="800" height="600"></canvas>
+                <canvas ref={self.canvas.clone()} id="canvas" width="1000" height="1000"></canvas>
             </div>
         }
     }

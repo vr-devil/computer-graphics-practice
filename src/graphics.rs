@@ -19,8 +19,8 @@ pub struct WGPUState {
 impl WGPUState {
     pub async fn new(window: Window) -> Self {
         let mut size = window.inner_size();
-        size.width = size.width.max(500);
-        size.height = size.height.max(500);
+        size.width = size.width.max(1000);
+        size.height = size.height.max(1000);
         info!("{:?}", size);
 
         let instance = Instance::default();

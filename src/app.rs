@@ -1,11 +1,8 @@
-use std::fmt::Debug;
 use log::info;
 use wasm_bindgen::prelude::wasm_bindgen;
-use web_sys::console::info;
 use web_sys::HtmlCanvasElement;
 use winit::application::ApplicationHandler;
 use winit::dpi::PhysicalSize;
-use winit::error::EventLoopError;
 use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, ControlFlow};
 use winit::event_loop::EventLoop;
@@ -40,7 +37,7 @@ impl Component for App {
     type Message = AppMsg;
     type Properties = ();
 
-    fn create(ctx: &Context<Self>) -> Self {
+    fn create(_ctx: &Context<Self>) -> Self {
         info!("Creating App");
         App {
             wgpu_state: None,

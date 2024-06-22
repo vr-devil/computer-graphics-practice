@@ -1,9 +1,7 @@
 use std::borrow::Cow;
-use std::iter;
 
 use log::info;
-use web_sys::console::info;
-use wgpu::{Backends, BlendComponent, BlendState, Color, ColorTargetState, ColorWrites, CommandEncoderDescriptor, Device, DeviceDescriptor, Face, Features, FragmentState, FrontFace, Instance, InstanceDescriptor, Limits, LoadOp, MultisampleState, Operations, PipelineLayoutDescriptor, PolygonMode, PowerPreference, PrimitiveState, PrimitiveTopology, Queue, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions, ShaderModuleDescriptor, ShaderSource, StoreOp, Surface, SurfaceConfiguration, SurfaceError, TextureUsages, TextureViewDescriptor, VertexState};
+use wgpu::{ Color, CommandEncoderDescriptor, Device, DeviceDescriptor, Features, FragmentState, Instance, Limits, LoadOp, MultisampleState, Operations, PipelineLayoutDescriptor, PowerPreference, PrimitiveState, Queue, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions, ShaderModuleDescriptor, ShaderSource, StoreOp, Surface, SurfaceConfiguration, SurfaceError, TextureViewDescriptor, VertexState};
 use winit::dpi::PhysicalSize;
 use winit::window::Window;
 
@@ -44,7 +42,7 @@ impl WGPUState {
                 &DeviceDescriptor {
                     label: None,
                     required_features: Features::empty(),
-                    required_limits: Limits::downlevel_webgl2_defaults()
+                    required_limits: Limits::downlevel_defaults()
                         .using_resolution(adapter.limits()),
                 },
                 None,
@@ -93,7 +91,7 @@ impl WGPUState {
             });
         info!("Created render pipeline");
 
-        let mut config = surface
+        let config = surface
             .get_default_config(&adapter, size.width, size.height)
             .unwrap();
         surface.configure(&device, &config);

@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 winit = { version = "0.30.2", features = ["rwh_06"] }
 yew = { git = "https://github.com/yewstack/yew/", features = ["csr"] }
-wgpu = { version = "0.20.1", features = ["webgpu", "webgl"] }
+wgpu = { version = "0.20.1", features = ["webgpu"] }
 log = "0.4"
 wasm-logger = "0.2.0"
 wasm-bindgen = "0.2.89"

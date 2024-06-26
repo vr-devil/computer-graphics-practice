@@ -1,9 +1,23 @@
-use std::borrow::Cow;
-
-use log::info;
-use wgpu::{ Color, CommandEncoderDescriptor, Device, DeviceDescriptor, Features, FragmentState, Instance, Limits, LoadOp, MultisampleState, Operations, PipelineLayoutDescriptor, PowerPreference, PrimitiveState, Queue, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions, ShaderModuleDescriptor, ShaderSource, StoreOp, Surface, SurfaceConfiguration, SurfaceError, TextureViewDescriptor, VertexState};
+use wgpu::{Color, CommandEncoderDescriptor, Device, DeviceDescriptor, Features, FragmentState, Instance, Limits, LoadOp, MultisampleState, Operations, PipelineLayoutDescriptor, PowerPreference, PrimitiveState, Queue, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions, ShaderModuleDescriptor, ShaderSource, StoreOp, Surface, SurfaceConfiguration, SurfaceError, TextureViewDescriptor, VertexState};
 use winit::dpi::PhysicalSize;
 use winit::window::Window;
+use log::info;
+use std::borrow::Cow;
+use wasm_bindgen::prelude::wasm_bindgen;
+use web_sys::HtmlCanvasElement;
+use yew::{Callback, NodeRef};
+
+
+#[wasm_bindgen]
+pub struct PrepareEnvironmentComponent {
+    wgpu_state: Option<WGPUState>,
+    canvas: NodeRef,
+}
+
+pub struct Handler {
+    canvas: HtmlCanvasElement,
+    wgpu_callback: Callback<WGPUState>,
+}
 
 pub struct WGPUState {
     pub surface: Surface<'static>,
@@ -138,7 +152,7 @@ impl WGPUState {
                         view: &view,
                         resolve_target: None,
                         ops: Operations {
-                            load: LoadOp::Clear(Color::GREEN),
+                            load: LoadOp::Clear(Color::BLACK),
                             store: StoreOp::Store,
                         },
                     })],

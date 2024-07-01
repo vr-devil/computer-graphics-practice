@@ -1,12 +1,12 @@
-use wgpu::{Color, CommandEncoderDescriptor, Device, DeviceDescriptor, Features, FragmentState, Instance, Limits, LoadOp, MultisampleState, Operations, PipelineLayoutDescriptor, PowerPreference, PrimitiveState, Queue, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions, ShaderModuleDescriptor, ShaderSource, StoreOp, Surface, SurfaceConfiguration, SurfaceError, TextureViewDescriptor, VertexState};
-use winit::dpi::PhysicalSize;
-use winit::window::Window;
-use log::info;
 use std::borrow::Cow;
+
+use log::info;
 use wasm_bindgen::prelude::wasm_bindgen;
 use web_sys::HtmlCanvasElement;
+use wgpu::{BlendState, Color, ColorTargetState, ColorWrites, CommandEncoderDescriptor, CompositeAlphaMode, Device, DeviceDescriptor, Features, FragmentState, Instance, Limits, LoadOp, MultisampleState, Operations, PipelineLayoutDescriptor, PowerPreference, PresentMode, PrimitiveState, Queue, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions, ShaderModuleDescriptor, ShaderSource, StoreOp, Surface, SurfaceConfiguration, SurfaceError, TextureUsages, TextureViewDescriptor, VertexState};
+use winit::dpi::PhysicalSize;
+use winit::window::Window;
 use yew::{Callback, NodeRef};
-
 
 pub struct WGPUState {
     pub surface: Surface<'static>,
@@ -20,8 +20,8 @@ pub struct WGPUState {
 impl WGPUState {
     pub async fn new(window: Window) -> Self {
         let mut size = window.inner_size();
-        size.width = size.width.max(1000);
-        size.height = size.height.max(1000);
+        size.width = size.width.max(500);
+        size.height = size.height.max(500);
         info!("{:?}", size);
 
         let instance = Instance::default();
@@ -45,8 +45,7 @@ impl WGPUState {
                 &DeviceDescriptor {
                     label: None,
                     required_features: Features::empty(),
-                    required_limits: Limits::downlevel_defaults()
-                        .using_resolution(adapter.limits()),
+                    required_limits: Limits::default(),
                 },
                 None,
             )
@@ -54,27 +53,32 @@ impl WGPUState {
             .unwrap();
         info!("Created device and queue");
 
+        let config = surface
+            .get_default_config(&adapter, size.width, size.height)
+            .unwrap();
+
+        surface.configure(&device, &config);
+        info!("Created config");
+
         let shader = device.create_shader_module(ShaderModuleDescriptor {
             label: Some("Shader"),
             source: ShaderSource::Wgsl(Cow::Borrowed(include_str!("shader.wgsl"))),
         });
         info!("Created shader");
 
-        let pipeline_layout =
+        let render_pipeline_layout =
             device.create_pipeline_layout(&PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
                 bind_group_layouts: &[],
                 push_constant_ranges: &[],
             });
-        info!("Created pipeline layout");
+        info!("Created render pipeline layout");
 
-        let swapchain_capabilities = surface.get_capabilities(&adapter);
-        let swapchain_format = swapchain_capabilities.formats[0];
-
+        let texture_format = surface.get_capabilities(&adapter).formats[0];
         let render_pipeline = device
             .create_render_pipeline(&RenderPipelineDescriptor {
                 label: Some("Render Pipeline"),
-                layout: Some(&pipeline_layout),
+                layout: Some(&render_pipeline_layout),
                 vertex: VertexState {
                     module: &shader,
                     entry_point: "vs_main",
@@ -85,7 +89,11 @@ impl WGPUState {
                     module: &shader,
                     entry_point: "fs_main",
                     compilation_options: Default::default(),
-                    targets: &[Some(swapchain_format.into())],
+                    targets: &[Some(ColorTargetState{
+                        format: texture_format,
+                        blend: Some(BlendState::REPLACE),
+                        write_mask: ColorWrites::all(),
+                    })],
                 }),
                 primitive: PrimitiveState::default(),
                 depth_stencil: None,
@@ -93,12 +101,6 @@ impl WGPUState {
                 multiview: None,
             });
         info!("Created render pipeline");
-
-        let config = surface
-            .get_default_config(&adapter, size.width, size.height)
-            .unwrap();
-        surface.configure(&device, &config);
-        info!("Created config");
 
         Self {
             surface,

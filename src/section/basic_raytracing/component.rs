@@ -4,26 +4,24 @@ use web_sys::HtmlCanvasElement;
 use winit::application::ApplicationHandler;
 use winit::dpi::PhysicalSize;
 use winit::event::WindowEvent;
-use winit::event_loop::{ActiveEventLoop, ControlFlow};
-use winit::event_loop::EventLoop;
+use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::platform::web;
 use winit::platform::web::EventLoopExtWebSys;
 use winit::window::{Window, WindowId};
+use yew::{Callback, Component, Context, Html, html, NodeRef};
 use yew::platform::spawn_local;
-use yew::prelude::*;
 
-use crate::section::prepare_environment::graphics::WGPUState;
+use crate::section::basic_raytracing::graphics::WGPUState;
 
 #[wasm_bindgen]
-pub struct PrepareEnvironment {
+pub struct BasicRaytracing {
     wgpu_state: Option<WGPUState>,
     canvas: NodeRef,
 }
 
-
 pub struct Handler {
-    pub(crate) canvas: HtmlCanvasElement,
-    pub(crate) wgpu_callback: Callback<WGPUState>,
+    canvas: HtmlCanvasElement,
+    wgpu_callback: Callback<WGPUState>,
 }
 
 pub enum AppMsg {
@@ -33,13 +31,13 @@ pub enum AppMsg {
     Nothing,
 }
 
-impl Component for PrepareEnvironment {
+impl Component for BasicRaytracing {
     type Message = AppMsg;
     type Properties = ();
 
     fn create(_ctx: &Context<Self>) -> Self {
         info!("Creating App");
-        PrepareEnvironment {
+        BasicRaytracing {
             wgpu_state: None,
             canvas: NodeRef::default(),
         }
@@ -82,9 +80,9 @@ impl Component for PrepareEnvironment {
     fn view(&self, _ctx: &Context<Self>) -> Html {
         html! {
             <section>
-                <h2>{"阶段1: 准备实践环境"}</h2>
-                <p>{"搭建基于Rust/WebGPU/Yew/Wgpu的实践环境。"}</p>
-                <canvas ref={self.canvas.clone()} id="canvas" width="500" height="500"></canvas>
+                <h2>{"阶段2: 基本光线追踪"}</h2>
+                <p>{"实现基本光线追踪功能。"}</p>
+                <canvas ref={self.canvas.clone()} id="basic_raytracing_canvas" width="600" height="600"></canvas>
             </section>
         }
     }

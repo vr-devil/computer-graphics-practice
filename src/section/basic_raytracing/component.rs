@@ -1,16 +1,11 @@
 use log::info;
 use wasm_bindgen::prelude::wasm_bindgen;
 use web_sys::HtmlCanvasElement;
-use winit::application::ApplicationHandler;
-use winit::dpi::PhysicalSize;
-use winit::event::WindowEvent;
-use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
-use winit::platform::web;
-use winit::platform::web::EventLoopExtWebSys;
-use winit::window::{Window, WindowId};
+use winit::window::{Window};
 use yew::{Callback, Component, Context, Html, html, NodeRef};
 use yew::platform::spawn_local;
 
+use crate::app::AppCallbackContext;
 use crate::section::basic_raytracing::graphics::WGPUState;
 
 #[wasm_bindgen]
@@ -19,20 +14,16 @@ pub struct BasicRaytracing {
     canvas: NodeRef,
 }
 
-pub struct Handler {
-    canvas: HtmlCanvasElement,
-    wgpu_callback: Callback<WGPUState>,
-}
-
-pub enum AppMsg {
+pub enum BasicRaytracingMsg {
     Initialize,
-    Initialized(WGPUState),
+    WindowCreated(Window),
+    WGPUInitialized(WGPUState),
     Redraw,
     Nothing,
 }
 
 impl Component for BasicRaytracing {
-    type Message = AppMsg;
+    type Message = BasicRaytracingMsg;
     type Properties = ();
 
     fn create(_ctx: &Context<Self>) -> Self {
@@ -45,31 +36,28 @@ impl Component for BasicRaytracing {
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
-            AppMsg::Initialize => {
+            BasicRaytracingMsg::Initialize => {
                 info!("Initialize");
-
-                let wgpu_cb = ctx.link().callback(AppMsg::Initialized);
-                let handler = Handler {
-                    canvas: self.canvas.cast::<HtmlCanvasElement>().unwrap(),
-                    wgpu_callback: wgpu_cb,
-                };
-
-                let event_loop = EventLoop::new().unwrap();
-                event_loop.set_control_flow(ControlFlow::Wait);
-                event_loop.spawn_app(handler);
-
             }
-            AppMsg::Initialized(state) => {
+            BasicRaytracingMsg::WindowCreated(window) => {
+                info!("WindowCreated");
+                let cb = ctx.link().callback(BasicRaytracingMsg::WGPUInitialized);
+
+                spawn_local(async move {
+                    cb.emit(WGPUState::new(window).await);
+                });
+            }
+            BasicRaytracingMsg::WGPUInitialized(state) => {
                 info!("Initialized");
 
                 self.wgpu_state = Some(state);
-                ctx.link().send_message(AppMsg::Redraw)
+                ctx.link().send_message(BasicRaytracingMsg::Redraw)
             }
-            AppMsg::Redraw => {
+            BasicRaytracingMsg::Redraw => {
                 info!("Redrawing");
                 self.wgpu_state.as_mut().unwrap().render().expect("TODO: panic message");
             }
-            AppMsg::Nothing => {
+            BasicRaytracingMsg::Nothing => {
                 info!("Nothing")
             }
         };
@@ -91,34 +79,12 @@ impl Component for BasicRaytracing {
         info!("App rendered");
         if first_render {
             info!("App first render");
-            ctx.link().send_message(AppMsg::Initialize);
+            let (app_cb, _) = ctx.link().context::<AppCallbackContext>(Callback::noop()).unwrap();
+
+            app_cb.emit((
+                self.canvas.cast::<HtmlCanvasElement>().unwrap(),
+                ctx.link().callback(BasicRaytracingMsg::WindowCreated)
+            ));
         }
-    }
-}
-
-impl ApplicationHandler for Handler {
-    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        info!("App handler resumed");
-
-        use web::WindowAttributesExtWebSys;
-
-        let canvas = self.canvas.clone();
-        let window_attributes = Window::default_attributes()
-            .with_inner_size(PhysicalSize::new(canvas.width(), canvas.height()))
-            .with_canvas(Some(canvas));
-
-        let window = event_loop.create_window(window_attributes).unwrap();
-        let cb = self.wgpu_callback.clone();
-
-        spawn_local(async move {
-            cb.emit(WGPUState::new(window).await);
-        });
-
-    }
-
-    fn window_event(&mut self, _event_loop: &ActiveEventLoop, _window_id: WindowId, _event: WindowEvent) {}
-
-    fn suspended(&mut self, _event_loop: &ActiveEventLoop) {
-        info!("App handler suspended");
     }
 }

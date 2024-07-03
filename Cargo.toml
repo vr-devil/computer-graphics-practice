@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-winit = { version = "0.30.2", features = ["rwh_06"] }
+winit = { version = "0.30.3", features = ["rwh_06"] }
 yew = { git = "https://github.com/yewstack/yew/", features = ["csr"] }
 wgpu = { version = "0.20.1", features = ["webgpu"] }
 log = "0.4"

@@ -1,17 +1,11 @@
 use log::info;
 use wasm_bindgen::prelude::wasm_bindgen;
 use web_sys::HtmlCanvasElement;
-use winit::application::ApplicationHandler;
-use winit::dpi::PhysicalSize;
-use winit::event::WindowEvent;
-use winit::event_loop::{ActiveEventLoop, ControlFlow};
-use winit::event_loop::EventLoop;
-use winit::platform::web;
-use winit::platform::web::EventLoopExtWebSys;
-use winit::window::{Window, WindowId};
+use winit::window::{Window};
 use yew::platform::spawn_local;
 use yew::prelude::*;
 
+use crate::app::AppCallbackContext;
 use crate::section::prepare_environment::graphics::WGPUState;
 
 #[wasm_bindgen]
@@ -20,21 +14,16 @@ pub struct PrepareEnvironment {
     canvas: NodeRef,
 }
 
-
-pub struct Handler {
-    pub(crate) canvas: HtmlCanvasElement,
-    pub(crate) wgpu_callback: Callback<WGPUState>,
-}
-
-pub enum AppMsg {
+pub enum PrepareEnvironmentMsg {
     Initialize,
-    Initialized(WGPUState),
+    WindowCreated(Window),
+    WGPUInitialized(WGPUState),
     Redraw,
     Nothing,
 }
 
 impl Component for PrepareEnvironment {
-    type Message = AppMsg;
+    type Message = PrepareEnvironmentMsg;
     type Properties = ();
 
     fn create(_ctx: &Context<Self>) -> Self {
@@ -47,31 +36,27 @@ impl Component for PrepareEnvironment {
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
-            AppMsg::Initialize => {
+            PrepareEnvironmentMsg::Initialize => {
                 info!("Initialize");
-
-                let wgpu_cb = ctx.link().callback(AppMsg::Initialized);
-                let handler = Handler {
-                    canvas: self.canvas.cast::<HtmlCanvasElement>().unwrap(),
-                    wgpu_callback: wgpu_cb,
-                };
-
-                let event_loop = EventLoop::new().unwrap();
-                event_loop.set_control_flow(ControlFlow::Wait);
-                event_loop.spawn_app(handler);
-
             }
-            AppMsg::Initialized(state) => {
-                info!("Initialized");
+            PrepareEnvironmentMsg::WindowCreated(window) => {
+                info!("WindowCreated");
+                let cb = ctx.link().callback(PrepareEnvironmentMsg::WGPUInitialized);
+                spawn_local(async move {
+                    cb.emit(WGPUState::new(window).await);
+                });
+            }
+            PrepareEnvironmentMsg::WGPUInitialized(state) => {
+                info!("WGPUInitialized");
 
                 self.wgpu_state = Some(state);
-                ctx.link().send_message(AppMsg::Redraw)
+                ctx.link().send_message(PrepareEnvironmentMsg::Redraw)
             }
-            AppMsg::Redraw => {
-                info!("Redrawing");
+            PrepareEnvironmentMsg::Redraw => {
+                info!("Redraw");
                 self.wgpu_state.as_mut().unwrap().render().expect("TODO: panic message");
             }
-            AppMsg::Nothing => {
+            PrepareEnvironmentMsg::Nothing => {
                 info!("Nothing")
             }
         };
@@ -93,34 +78,14 @@ impl Component for PrepareEnvironment {
         info!("App rendered");
         if first_render {
             info!("App first render");
-            ctx.link().send_message(AppMsg::Initialize);
+
+            let (app_cb, _) = ctx.link().context::<AppCallbackContext>(Callback::noop()).unwrap();
+
+            app_cb.emit((
+                self.canvas.cast::<HtmlCanvasElement>().unwrap(),
+                ctx.link().callback(PrepareEnvironmentMsg::WindowCreated)
+            ));
+
         }
-    }
-}
-
-impl ApplicationHandler for Handler {
-    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        info!("App handler resumed");
-
-        use web::WindowAttributesExtWebSys;
-
-        let canvas = self.canvas.clone();
-        let window_attributes = Window::default_attributes()
-            .with_inner_size(PhysicalSize::new(canvas.width(), canvas.height()))
-            .with_canvas(Some(canvas));
-
-        let window = event_loop.create_window(window_attributes).unwrap();
-        let cb = self.wgpu_callback.clone();
-
-        spawn_local(async move {
-            cb.emit(WGPUState::new(window).await);
-        });
-
-    }
-
-    fn window_event(&mut self, _event_loop: &ActiveEventLoop, _window_id: WindowId, _event: WindowEvent) {}
-
-    fn suspended(&mut self, _event_loop: &ActiveEventLoop) {
-        info!("App handler suspended");
     }
 }

@@ -3,9 +3,6 @@ use winit::dpi::PhysicalSize;
 use winit::window::Window;
 use log::info;
 use std::borrow::Cow;
-use wasm_bindgen::prelude::wasm_bindgen;
-use web_sys::HtmlCanvasElement;
-use yew::{Callback, NodeRef};
 
 
 pub struct WGPUState {

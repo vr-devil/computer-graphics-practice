@@ -67,9 +67,9 @@ impl Component for BasicRaytracing {
 
     fn view(&self, _ctx: &Context<Self>) -> Html {
         html! {
-            <section>
+            <section class="w-full">
                 <h2>{"阶段2: 基本光线追踪"}</h2>
-                <p>{"实现基本光线追踪功能。"}</p>
+                <p class="my-4">{"实现基本光线追踪功能。"}</p>
                 <canvas ref={self.canvas.clone()} id="basic_raytracing_canvas" width="600" height="600"></canvas>
             </section>
         }

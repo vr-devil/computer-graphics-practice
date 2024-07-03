@@ -48,11 +48,17 @@ impl Component for App {
 
         html! {
         <ContextProvider<AppCallbackContext> context={cb}>
-                <h1>{"你好, 计算机图形"}</h1>
-                <p>{"《"}<a href="https://gabrielgambetta.com/computer-graphics-from-scratch/" target="_blank">{"Computer Graphics from Scratch"}</a>{"》实践。"}</p>
-                <PrepareEnvironment />
-                <BasicRaytracing />
-        </ContextProvider<AppCallbackContext >>
+            <div class="container mx-auto">
+                <header class="py-6">
+                    <h1>{"你好, 计算机图形"}</h1>
+                    <p class="my-4">{"这是学习《"}<a href="https://gabrielgambetta.com/computer-graphics-from-scratch/" target="_blank">{"Computer Graphics from Scratch"}</a>{"》的课后实践。"}</p>
+                </header>
+                <main class="grid grid-flow-col auto-cols-max gap-8">
+                    <PrepareEnvironment />
+                    <BasicRaytracing />
+                </main>
+            </div>
+        </ContextProvider<AppCallbackContext>>
         }
     }
 

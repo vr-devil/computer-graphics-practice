@@ -66,10 +66,10 @@ impl Component for PrepareEnvironment {
 
     fn view(&self, _ctx: &Context<Self>) -> Html {
         html! {
-            <section>
+            <section class="w-full">
                 <h2>{"阶段1: 准备实践环境"}</h2>
-                <p>{"搭建基于Rust/WebGPU/Yew/Wgpu的实践环境。"}</p>
-                <canvas ref={self.canvas.clone()} id="canvas" width="500" height="500"></canvas>
+                <p class="my-4">{"搭建基于Rust/WebGPU/Yew/Wgpu的实践环境。"}</p>
+                <canvas ref={self.canvas.clone()} id="canvas" width="600" height="600"></canvas>
             </section>
         }
     }

@@ -8,6 +8,7 @@ use winit::platform::web::{EventLoopExtWebSys, WindowAttributesExtWebSys};
 use winit::window::{Window, WindowId};
 use yew::prelude::*;
 use crate::section::basic_raytracing::component::BasicRaytracing;
+use crate::section::light::component::Light;
 use crate::section::prepare_environment::component::PrepareEnvironment;
 
 pub struct App {
@@ -48,14 +49,15 @@ impl Component for App {
 
         html! {
         <ContextProvider<AppCallbackContext> context={cb}>
-            <div class="container mx-auto">
+            <div class="container mx-auto justify-center">
                 <header class="py-6">
                     <h1>{"你好, 计算机图形"}</h1>
                     <p class="my-4">{"这是学习《"}<a href="https://gabrielgambetta.com/computer-graphics-from-scratch/" target="_blank">{"Computer Graphics from Scratch"}</a>{"》的课后实践。"}</p>
                 </header>
-                <main class="grid grid-flow-col auto-cols-max gap-8">
+                <main class="grid grid-cols-3 gap-8">
                     <PrepareEnvironment />
                     <BasicRaytracing />
+                    <Light />
                 </main>
             </div>
         </ContextProvider<AppCallbackContext>>

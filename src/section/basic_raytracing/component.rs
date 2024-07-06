@@ -68,7 +68,7 @@ impl Component for BasicRaytracing {
     fn view(&self, _ctx: &Context<Self>) -> Html {
         html! {
             <section class="w-full">
-                <h2>{"阶段2: 基本光线追踪"}</h2>
+                <h2>{"阶段2：基本光线追踪"}</h2>
                 <p class="my-4">{"实现基本光线追踪功能。"}</p>
                 <canvas ref={self.canvas.clone()} id="basic_raytracing_canvas" width="600" height="600"></canvas>
             </section>
@@ -79,7 +79,9 @@ impl Component for BasicRaytracing {
         info!("App rendered");
         if first_render {
             info!("App first render");
-            let (app_cb, _) = ctx.link().context::<AppCallbackContext>(Callback::noop()).unwrap();
+            let (app_cb, _) = ctx.link()
+                .context::<AppCallbackContext>(Callback::noop())
+                .unwrap();
 
             app_cb.emit((
                 self.canvas.cast::<HtmlCanvasElement>().unwrap(),

@@ -10,6 +10,7 @@ use yew::prelude::*;
 use crate::section::basic_raytracing::component::BasicRaytracing;
 use crate::section::light::component::Light;
 use crate::section::prepare_environment::component::PrepareEnvironment;
+use crate::section::shadows_and_reflections::component::ShadowsAndReflections;
 
 pub struct App {
     event_loop_proxy: EventLoopProxy<AppMsg>,
@@ -49,7 +50,7 @@ impl Component for App {
 
         html! {
         <ContextProvider<AppCallbackContext> context={cb}>
-            <div class="container mx-auto justify-center">
+            <div class="container mx-auto py-8 justify-center">
                 <header class="py-6">
                     <h1>{"你好, 计算机图形"}</h1>
                     <p class="my-4">{"这是学习《"}<a href="https://gabrielgambetta.com/computer-graphics-from-scratch/" target="_blank">{"Computer Graphics from Scratch"}</a>{"》的课后实践。"}</p>
@@ -58,6 +59,7 @@ impl Component for App {
                     <PrepareEnvironment />
                     <BasicRaytracing />
                     <Light />
+                    <ShadowsAndReflections />
                 </main>
             </div>
         </ContextProvider<AppCallbackContext>>

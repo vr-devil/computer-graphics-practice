@@ -47,7 +47,7 @@ const spheres = array<Sphere, 4>(
     Sphere(vec3f(0.0, -1.0, 3.0), 1.0, vec3f(1, 0, 0), 500, 0.2), // red
     Sphere(vec3f(2.0, 0.0, 4.0), 1.0, vec3f(0, 0, 1), 500, 0.3), // green
     Sphere(vec3f(-2.0, 0.0, 4.0), 1.0, vec3f(0, 1, 0), 10, 0.4), // blue
-    Sphere(vec3f(0.0, -5002.0, 0.0), 5000.0, vec3f(1, 1, 0), 1000, 0.5), // yellow
+    Sphere(vec3f(0.0, -5001.0, 0.0), 5000.0, vec3f(1, 1, 0), 1000, 0.5), // yellow
 );
 
 const lights = array<Light, 3>(
@@ -72,36 +72,44 @@ fn fs_main(@builtin(position) frag_coord: vec4f) -> @location(0) vec4f {
         vec3f(vx, vy, 1.0)
     );
 
-    return tracy_ray(ray, Range(1.0, inf), 1);
+    return tracy_ray(ray, Range(1.0, inf), 3);
 }
 
 // return sphere color
-fn tracy_ray(ray: Ray, range: Range, recursion_depth: u32) -> vec4f {
+fn tracy_ray(ray: Ray, range: Range, max_recursion_depth: u32) -> vec4f {
+    var accumulated_color = vec3f(0.0, 0.0, 0.0);
+    var current_ray = ray;
+    var current_range = range;
+    var depth = max_recursion_depth;
+    var reflectance = 1.0;
 
-    let intersect = closet_intersection(ray, range);
+    loop {
+        let intersect = closet_intersection(current_ray, current_range);
+        if(intersect.closet_t == -1) {
+            break;
+        }
 
-    if(intersect.closet_t == -1) {
-        return vec4f(0.0, 0.0, 0.0, 1.0);
+        let sphere = spheres[intersect.closet_i];
+        let P = current_ray.origin + intersect.closet_t * current_ray.direction;
+        var N = P - sphere.center;
+        N = normalize(N);
+
+        let local_color = sphere.color * compute_lighting(P, N, -current_ray.direction, sphere.specular);
+        accumulated_color += local_color * reflectance;
+
+        let r = sphere.reflective;
+        if(depth == 0 || r <= 0) {
+            break;
+        }
+
+        reflectance *= r;
+        let R = reflect_ray(-current_ray.direction, N);
+        current_ray = Ray(P, R);
+        current_range = Range(0.1, inf);
+        depth--;
     }
 
-    let sphere = spheres[intersect.closet_i];
-
-    let P = ray.origin + intersect.closet_t * ray.direction;
-    var N = P - sphere.center;
-    N = N / length(N);
-
-    var local_color = sphere.color * compute_lighting(P, N, -ray.direction, sphere.specular);
-
-    let r = sphere.reflective;
-    if(recursion_depth <= 0 || r <= 0) {
-        return vec4<f32>(local_color, 1.0);
-    }
-
-    let R = reflect_ray(-ray.direction, N);
-    let reflected_color = tracy_ray(Ray(P, R), Range(0.001, inf), recursion_depth - 1);
-
-    let color = local_color * (1 - r) + reflected_color * r;
-    return vec4<f32>(color, 1.0);
+    return vec4f(accumulated_color, 1.0);
 }
 
 fn intersect_ray_sphere(ray: Ray, sphere: Sphere) -> array<f32, 2> {

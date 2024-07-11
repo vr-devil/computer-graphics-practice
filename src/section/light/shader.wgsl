@@ -34,7 +34,7 @@ const spheres = array<Sphere, 4>(
     Sphere(vec3f(0.0, -1.0, 3.0), 1.0, vec3f(1, 0, 0), 500), // red
     Sphere(vec3f(2.0, 0.0, 4.0), 1.0, vec3f(0, 0, 1), 500), // green
     Sphere(vec3f(-2.0, 0.0, 4.0), 1.0, vec3f(0, 1, 0), 10), // blue
-    Sphere(vec3f(0.0, -5002.0, 0.0), 5000.0, vec3f(1, 1, 0), 1000), // yellow
+    Sphere(vec3f(0.0, -5001.0, 0.0), 5000.0, vec3f(1, 1, 0), 1000), // yellow
 );
 
 const lights = array<Light, 3>(

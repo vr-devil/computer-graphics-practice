@@ -4,11 +4,10 @@ use yew::{Callback, Component, Context, Html, html, NodeRef};
 use yew::platform::spawn_local;
 
 use crate::app::AppCallbackContext;
-use crate::section::shadows_and_reflections::graphics::WGPUState;
+use crate::graphics::WGPUState;
 
 pub struct ShadowsAndReflections {
     canvas: NodeRef,
-    wgpu_state: Option<WGPUState>
 }
 
 pub enum ShadowsAndReflectionsMsg {
@@ -20,10 +19,9 @@ impl Component for ShadowsAndReflections {
     type Message = ShadowsAndReflectionsMsg;
     type Properties = ();
 
-    fn create(ctx: &Context<Self>) -> Self {
+    fn create(_ctx: &Context<Self>) -> Self {
         Self {
             canvas: NodeRef::default(),
-            wgpu_state: None,
         }
     }
 
@@ -32,7 +30,7 @@ impl Component for ShadowsAndReflections {
             ShadowsAndReflectionsMsg::WindowCreated(window) => {
                 let cb = ctx.link().callback(ShadowsAndReflectionsMsg::WGPUInitialized);
                 spawn_local(async move {
-                    cb.emit(WGPUState::new(window).await)
+                    cb.emit(WGPUState::new(window, include_str!("shader.wgsl")).await)
                 })
             }
             ShadowsAndReflectionsMsg::WGPUInitialized(mut state) => {
@@ -44,7 +42,7 @@ impl Component for ShadowsAndReflections {
         true
     }
 
-    fn view(&self, ctx: &Context<Self>) -> Html {
+    fn view(&self, _ctx: &Context<Self>) -> Html {
         html! {
             <section class="w-full">
                 <h2>{"阶段4：阴影与反射"}</h2>

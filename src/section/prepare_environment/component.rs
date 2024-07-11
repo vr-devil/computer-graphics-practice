@@ -6,7 +6,7 @@ use yew::platform::spawn_local;
 use yew::prelude::*;
 
 use crate::app::AppCallbackContext;
-use crate::section::prepare_environment::graphics::WGPUState;
+use crate::graphics::WGPUState;
 
 #[wasm_bindgen]
 pub struct PrepareEnvironment {
@@ -43,7 +43,7 @@ impl Component for PrepareEnvironment {
                 info!("WindowCreated");
                 let cb = ctx.link().callback(PrepareEnvironmentMsg::WGPUInitialized);
                 spawn_local(async move {
-                    cb.emit(WGPUState::new(window).await);
+                    cb.emit(WGPUState::new(window,include_str!("shader.wgsl")).await);
                 });
             }
             PrepareEnvironmentMsg::WGPUInitialized(state) => {

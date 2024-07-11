@@ -4,11 +4,10 @@ use yew::{Callback, Component, Context, Html, html, NodeRef};
 use yew::platform::spawn_local;
 
 use crate::app::AppCallbackContext;
-use crate::section::light::graphics::WGPUState;
+use crate::graphics::WGPUState;
 
 pub struct Light {
     canvas: NodeRef,
-    wgpu_state: Option<WGPUState>
 }
 
 pub enum LightMsg {
@@ -20,10 +19,9 @@ impl Component for Light {
     type Message = LightMsg;
     type Properties = ();
 
-    fn create(ctx: &Context<Self>) -> Self {
+    fn create(_ctx: &Context<Self>) -> Self {
         Self {
             canvas: NodeRef::default(),
-            wgpu_state: None,
         }
     }
 
@@ -32,7 +30,7 @@ impl Component for Light {
             LightMsg::WindowCreated(window) => {
                 let cb = ctx.link().callback(LightMsg::WGPUInitialized);
                 spawn_local(async move {
-                    cb.emit(WGPUState::new(window).await)
+                    cb.emit(WGPUState::new(window, include_str!("shader.wgsl")).await)
                 })
             }
             LightMsg::WGPUInitialized(mut state) => {
@@ -44,7 +42,7 @@ impl Component for Light {
         true
     }
 
-    fn view(&self, ctx: &Context<Self>) -> Html {
+    fn view(&self, _ctx: &Context<Self>) -> Html {
         html! {
             <section class="w-full">
                 <h2>{"阶段3：光"}</h2>

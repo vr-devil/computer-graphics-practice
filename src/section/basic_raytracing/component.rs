@@ -6,7 +6,7 @@ use yew::{Callback, Component, Context, Html, html, NodeRef};
 use yew::platform::spawn_local;
 
 use crate::app::AppCallbackContext;
-use crate::section::basic_raytracing::graphics::WGPUState;
+use crate::graphics::WGPUState;
 
 #[wasm_bindgen]
 pub struct BasicRaytracing {
@@ -44,7 +44,7 @@ impl Component for BasicRaytracing {
                 let cb = ctx.link().callback(BasicRaytracingMsg::WGPUInitialized);
 
                 spawn_local(async move {
-                    cb.emit(WGPUState::new(window).await);
+                    cb.emit(WGPUState::new(window, include_str!("shader.wgsl")).await);
                 });
             }
             BasicRaytracingMsg::WGPUInitialized(state) => {

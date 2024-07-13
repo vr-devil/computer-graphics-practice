@@ -1,6 +1,5 @@
 use crate::app::App;
 
-mod section;
 mod app;
 pub mod graphics;
 

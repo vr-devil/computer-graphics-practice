@@ -41,7 +41,7 @@ impl WGPUState {
             .request_device(
                 &DeviceDescriptor {
                     label: None,
-                    required_features: Features::empty(),
+                    required_features: Features::all(),
                     required_limits: Limits::default(),
                 },
                 None,

@@ -11,6 +11,7 @@ use winit::platform::web::{EventLoopExtWebSys, WindowAttributesExtWebSys};
 use winit::window::{Window, WindowId};
 use yew::prelude::*;
 
+use crate::components::section::Section;
 use crate::graphics::WGPUState;
 
 pub struct App {
@@ -56,7 +57,7 @@ impl Component for App {
                     <h1>{"你好, 计算机图形"}</h1>
                     <p class="my-4">{"这是学习《"}<a href="https://gabrielgambetta.com/computer-graphics-from-scratch/" target="_blank">{"Computer Graphics from Scratch"}</a>{"》的课后实践。"}</p>
                 </header>
-                <main class="grid grid-cols-3 gap-8">
+                <main class="grid gap-8">
                     <Section title="阶段1：准备实践环境" subtitle="搭建基于Rust/WebGPU/Yew/Wgpu的实践环境。" shader={include_str!("shaders/prepare_environment.wgsl")}/>
                     <Section title="阶段2：基本光线追踪" subtitle="实现基本光线追踪功能。" shader={include_str!("shaders/basic_raytracing.wgsl")}/>
                     <Section title="阶段3：光" subtitle="实现光照效果。" shader={include_str!("shaders/light.wgsl")}/>
@@ -95,82 +96,12 @@ impl ApplicationHandler<AppMsg> for Handler {
     }
 
     fn window_event(&mut self, _event_loop: &ActiveEventLoop, _window_id: WindowId, event: WindowEvent) {
-        info!("{:?}", event)
-    }
-}
+        info!("{:?}", event);
+        match event {
+            WindowEvent::CursorMoved { position, .. } => {
 
-pub struct Section {
-    canvas: NodeRef,
-}
-
-pub enum SectionMsg {
-    WindowCreated(Window),
-    WGPUInitialized(WGPUState)
-}
-
-#[derive(Properties, PartialEq)]
-pub struct SectionProps {
-    pub title: AttrValue,
-    pub subtitle: AttrValue,
-    pub shader: AttrValue
-}
-
-impl Component for Section {
-    type Message = SectionMsg;
-    type Properties = SectionProps;
-
-    fn create(_ctx: &Context<Self>) -> Self {
-        Self {
-            canvas: NodeRef::default(),
-        }
-    }
-
-    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
-        match msg {
-            SectionMsg::WindowCreated(window) => {
-                let cb = ctx.link().callback(SectionMsg::WGPUInitialized);
-                let shader = ctx.props().shader.clone();
-                yew::platform::spawn_local(async move {
-                    cb.emit(WGPUState::new(window, &shader).await)
-                })
             }
-            SectionMsg::WGPUInitialized(mut state) => {
-                state.render().expect("failed to render.");
-                // self.wgpu_state = Some(state);
-            }
-        }
-
-        true
-    }
-
-    fn view(&self, ctx: &Context<Self>) -> Html {
-
-        let props = ctx.props();
-
-        html! {
-            <section class="w-full">
-                <h2>{props.title.as_str()}</h2>
-                <p class="my-4">{props.subtitle.as_str()}</p>
-                <canvas
-                    ref={self.canvas.clone()}
-                    class="pointer-events-none"
-                    width="600"
-                    height="600"
-                />
-            </section>
-        }
-    }
-
-    fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
-        if first_render {
-            let (cb, _) =ctx.link()
-                .context::<AppCallbackContext>(Callback::noop())
-                .unwrap();
-
-            cb.emit((
-                self.canvas.cast::<HtmlCanvasElement>().unwrap(),
-                ctx.link().callback(SectionMsg::WindowCreated)
-            ));
+            _ => {}
         }
     }
 }

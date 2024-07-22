@@ -1,5 +1,3 @@
-use std::fs;
-
 use log::info;
 use wasm_bindgen_futures::spawn_local;
 use web_sys::HtmlCanvasElement;
@@ -10,9 +8,9 @@ use winit::event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy};
 use winit::platform::web::{EventLoopExtWebSys, WindowAttributesExtWebSys};
 use winit::window::{Window, WindowId};
 use yew::prelude::*;
-
+use crate::components::raytracer::{RayTracerCanvas};
 use crate::components::section::Section;
-use crate::graphics::WGPUState;
+
 
 pub struct App {
     event_loop_proxy: EventLoopProxy<AppMsg>,
@@ -58,10 +56,11 @@ impl Component for App {
                     <p class="my-4">{"这是学习《"}<a href="https://gabrielgambetta.com/computer-graphics-from-scratch/" target="_blank">{"Computer Graphics from Scratch"}</a>{"》的课后实践。"}</p>
                 </header>
                 <main class="grid gap-8">
-                    <Section title="阶段1：准备实践环境" subtitle="搭建基于Rust/WebGPU/Yew/Wgpu的实践环境。" shader={include_str!("shaders/prepare_environment.wgsl")}/>
-                    <Section title="阶段2：基本光线追踪" subtitle="实现基本光线追踪功能。" shader={include_str!("shaders/basic_raytracing.wgsl")}/>
-                    <Section title="阶段3：光" subtitle="实现光照效果。" shader={include_str!("shaders/light.wgsl")}/>
-                    <Section title="阶段4：阴影与反射" subtitle="实现物体的阴影和反射光。" shader={include_str!("shaders/shadows_and_reflections.wgsl")}/>
+                    <RayTracerCanvas />
+                    // <Section title="阶段1：准备实践环境" subtitle="搭建基于Rust/WebGPU/Yew/Wgpu的实践环境。" shader={include_str!("shaders/prepare_environment.wgsl")}/>
+                    // <Section title="阶段2：基本光线追踪" subtitle="实现基本光线追踪功能。" shader={include_str!("shaders/basic_raytracing.wgsl")}/>
+                    // <Section title="阶段3：光" subtitle="实现光照效果。" shader={include_str!("shaders/light.wgsl")}/>
+                    // <Section title="阶段4：阴影与反射" subtitle="实现物体的阴影和反射光。" shader={include_str!("shaders/shadows_and_reflections.wgsl")}/>
                 </main>
             </div>
         </ContextProvider<AppCallbackContext>>
@@ -98,9 +97,6 @@ impl ApplicationHandler<AppMsg> for Handler {
     fn window_event(&mut self, _event_loop: &ActiveEventLoop, _window_id: WindowId, event: WindowEvent) {
         info!("{:?}", event);
         match event {
-            WindowEvent::CursorMoved { position, .. } => {
-
-            }
             _ => {}
         }
     }

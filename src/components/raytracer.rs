@@ -80,21 +80,21 @@ impl Component for RayTracerCanvas {
                             reflective: 0.2,
                         },
                         Sphere {
-                            center: Vec3::new(-2.0, 0.0, 4.0),
-                            radius: 1.0,
-                            color: Rgb::new(0.0, 0.0, 255.0),
-                            specular: 10.0,
-                            reflective: 0.4,
-                        },
-                        Sphere {
                             center: Vec3::new(2.0, 0.0, 4.0),
                             radius: 1.0,
-                            color: Rgb::new(0.0, 255.0, 0.0),
+                            color: Rgb::new(0.0, 0.0, 255.0),
                             specular: 500.0,
                             reflective: 0.3,
                         },
                         Sphere {
-                            center: Vec3::new(0.0, -5000.0, 0.0),
+                            center: Vec3::new(-2.0, 0.0, 4.0),
+                            radius: 1.0,
+                            color: Rgb::new(0.0, 255.0, 0.0),
+                            specular: 10.0,
+                            reflective: 0.4,
+                        },
+                        Sphere {
+                            center: Vec3::new(0.0, -5001.0, 0.0),
                             radius: 5000.0,
                             color: Rgb::new(255.0, 255.0, 0.0),
                             specular: 1000.0,
@@ -216,7 +216,7 @@ impl RayTracer {
                 };
 
                 let reflected_color = self.tracy_ray(&reflected_ray, &Range {
-                    min: 0.001,
+                    min: 0.1,
                     max: f32::INFINITY,
                 }, depth - 1);
 
@@ -299,7 +299,7 @@ impl RayTracer {
                         direction: vec_l,
                     }, &Range { min: 0.001, max: t_max });
 
-                    if let None = intersection {
+                    if intersection.is_some() {
                         continue;
                     }
 

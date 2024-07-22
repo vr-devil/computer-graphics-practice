@@ -8,7 +8,7 @@ use winit::event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy};
 use winit::platform::web::{EventLoopExtWebSys, WindowAttributesExtWebSys};
 use winit::window::{Window, WindowId};
 use yew::prelude::*;
-use crate::components::raytracer::{RayTracerCanvas};
+use crate::components::raytracer::{RaytracerCanvas};
 use crate::components::section::Section;
 
 
@@ -56,7 +56,8 @@ impl Component for App {
                     <p class="my-4">{"这是学习《"}<a href="https://gabrielgambetta.com/computer-graphics-from-scratch/" target="_blank">{"Computer Graphics from Scratch"}</a>{"》的课后实践。"}</p>
                 </header>
                 <main class="grid gap-8">
-                    <RayTracerCanvas />
+                    <Section title="部分1: 光线追踪器(Raytracer)" subtitle="基于CPU实现的光线追踪器，包括基本光线追踪逻辑、光照效果、阴影与反射光。"><RaytracerCanvas /></Section>
+
                     // <Section title="阶段1：准备实践环境" subtitle="搭建基于Rust/WebGPU/Yew/Wgpu的实践环境。" shader={include_str!("shaders/prepare_environment.wgsl")}/>
                     // <Section title="阶段2：基本光线追踪" subtitle="实现基本光线追踪功能。" shader={include_str!("shaders/basic_raytracing.wgsl")}/>
                     // <Section title="阶段3：光" subtitle="实现光照效果。" shader={include_str!("shaders/light.wgsl")}/>

@@ -1,3 +1,4 @@
 pub mod section;
-pub mod raytracer;
+pub mod raytracing;
 pub mod wgpu_canvas;
+pub mod rasterization;

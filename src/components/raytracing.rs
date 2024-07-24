@@ -6,7 +6,7 @@ use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, ImageData, Performanc
 use yew::{Component, Context, Html, html, NodeRef};
 
 
-pub struct RaytracerCanvas {
+pub struct RaytracingCanvas {
     canvas_ref: NodeRef,
 }
 
@@ -49,7 +49,7 @@ struct Sphere {
     pub reflective: f32,
 }
 
-impl Component for RaytracerCanvas {
+impl Component for RaytracingCanvas {
     type Message = ();
     type Properties = ();
 

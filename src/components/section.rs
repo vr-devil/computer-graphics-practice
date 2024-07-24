@@ -24,7 +24,7 @@ impl Component for Section {
         let props = ctx.props();
 
         html! {
-            <section class="w-full flex flex-row">
+            <section class="w-full flex flex-row gap-8">
                 <div class="grow">
                     <h2>{props.title.as_str()}</h2>
                     <p class="my-4">{props.subtitle.as_str()}</p>

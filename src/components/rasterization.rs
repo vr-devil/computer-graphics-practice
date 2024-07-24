@@ -1,5 +1,5 @@
 use log::info;
-use nalgebra_glm::{length, normalize, Vec2, Vec3};
+use nalgebra_glm::{Vec2};
 use rgb::Rgb;
 use wasm_bindgen::{Clamped, JsCast};
 use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, ImageData, Performance, window};
@@ -55,33 +55,46 @@ impl Rasterizer {
             .dyn_into::<CanvasRenderingContext2d>()
             .unwrap();
 
-        let w = self.canvas.width() as i32;
-        let h = self.canvas.height() as i32;
+        let w = self.canvas.width();
+        let h = self.canvas.height();
 
         info!("w{:}/h{:}", w, h);
 
-        let mut image_data = context
-            .get_image_data(0.0, 0.0, w as f64, h as f64)
-            .unwrap()
-            .data()
-            .0;
+
+        let mut drawer = Drawer {
+            data: context
+                .get_image_data(0.0, 0.0, w as f64, h as f64)
+                .unwrap()
+                .data()
+                .0,
+            weight: w,
+            height: h,
+        };
 
         let color = Rgb::new(255.0, 255.0, 255.0);
-        self.draw_line(Vec2::new(-150.0, -150.0), Vec2::new(150.0, 150.0), color, &mut image_data);
-        self.draw_line(Vec2::new(-150.0, 150.0), Vec2::new(150.0, -150.0), color, &mut image_data);
-        self.draw_line(Vec2::new(-150.0, 0.0), Vec2::new(150.0, -0.0), color, &mut image_data);
-        self.draw_line(Vec2::new(0.0, 150.0), Vec2::new(0.0, -150.0), color, &mut image_data);
+        drawer.draw_line(Vec2::new(-150.0, -150.0), Vec2::new(150.0, 150.0), color);
+        drawer.draw_line(Vec2::new(-150.0, 150.0), Vec2::new(150.0, -150.0), color);
+        drawer.draw_line(Vec2::new(-150.0, 0.0), Vec2::new(150.0, -0.0), color);
+        drawer.draw_line(Vec2::new(0.0, 150.0), Vec2::new(0.0, -150.0), color);
+        drawer.draw_filled_triangle(Vec2::new(0.0, 85.0), Vec2::new(-120.0, -70.0), Vec2::new(120.0, -20.0), color);
 
         let end = self.performance.now();
         info!("execution: {:?}", end - start);
 
-        let data = ImageData::new_with_u8_clamped_array(Clamped(image_data.as_slice()), w as u32).unwrap();
+        let data = ImageData::new_with_u8_clamped_array(Clamped(drawer.data.as_slice()), w as u32).unwrap();
 
         context.put_image_data(&data, 0.0, 0.0).expect("TODO: panic message");
     }
+}
 
+struct Drawer {
+    data: Vec<u8>,
+    weight: u32,
+    height: u32,
+}
 
-    fn draw_line (&self, mut p0: Vec2, mut p1: Vec2, color: Rgb<f32>, data: &mut Vec<u8>) {
+impl Drawer {
+    fn draw_line(&mut self, mut p0: Vec2, mut p1: Vec2, color: Rgb<f32>) {
         if (p1.x - p0.x).abs() > (p1.y - p0.y).abs() {
             if p0.x > p1.x {
                 self.swap(&mut p0, &mut p1)
@@ -89,11 +102,11 @@ impl Rasterizer {
 
             let x0 = p0.x as i32;
             let x1 = p1.x as i32;
-            let ys = self.interpolate(x0, p0.y, x1, p1.y);
+            let ys = self.interpolate(p0.x, p0.y, p1.x, p1.y);
 
             for x in x0..=x1 {
-                let y = (x-x0) as usize;
-                self.put_pixels(x, ys[y] as i32, color, data);
+                let y = (x - x0) as usize;
+                self.put_pixels(x, ys[y] as i32, color);
             }
         } else {
             if p0.y > p1.y {
@@ -102,10 +115,53 @@ impl Rasterizer {
 
             let y0 = p0.y as i32;
             let y1 = p1.y as i32;
-            let xs = self.interpolate(y0, p0.x, y1, p1.x);
+            let xs = self.interpolate(p0.y, p0.x, p1.y, p1.x);
             for y in y0..=y1 {
-                let x = (y-y0) as usize;
-                self.put_pixels(xs[x] as i32, y, color, data);
+                let x = (y - y0) as usize;
+                self.put_pixels(xs[x] as i32, y, color);
+            }
+        }
+    }
+
+    fn draw_filled_triangle(&mut self, mut p0: Vec2, mut p1: Vec2, mut p2: Vec2, color: Rgb<f32>) {
+        if p1.y < p0.y {
+            self.swap(&mut p1, &mut p0)
+        }
+
+        if p2.y < p0.y {
+            self.swap(&mut p2, &mut p0)
+        }
+
+        if p2.y < p1.y {
+            self.swap(&mut p2, &mut p1)
+        }
+
+        let mut x01 = self.interpolate(p0.y, p0.x, p1.y, p1.x);
+        let x12 = self.interpolate(p1.y, p1.x, p2.y, p2.x);
+        let x02 = self.interpolate(p0.y, p0.x, p2.y, p2.x);
+
+        x01.remove(x01.len() - 1);
+
+        let x012 = [x01, x12].concat();
+
+        let x_left;
+        let x_right;
+        let m = x012.len() / 2;
+        if x02[m] < x012[m] {
+            x_left = x02;
+            x_right = x012;
+        } else {
+            x_left = x012;
+            x_right = x02;
+        }
+
+
+        let y0 = p0.y as i32;
+        let y2 = p2.y as i32;
+
+        for y in y0..=y2 {
+            for x in x_left[(y - y0) as usize] as i32..=x_right[(y - y0) as usize] as i32 {
+                self.put_pixels(x, y, color);
             }
         }
     }
@@ -119,7 +175,7 @@ impl Rasterizer {
         p1.y = y;
     }
 
-    fn interpolate(&self, i0: i32, d0: f32, i1: i32, d1: f32) -> Vec<f32> {
+    fn interpolate(&self, i0: f32, d0: f32, i1: f32, d1: f32) -> Vec<f32> {
         let mut values: Vec<f32> = vec![];
 
         if i0 == i1 {
@@ -127,7 +183,7 @@ impl Rasterizer {
         } else {
             let a = (d1 - d0) / (i1 - i0) as f32;
             let mut d = d0;
-            for i in i0 as i32..=i1 as i32 {
+            for _ in i0 as i32..=i1 as i32 {
                 values.push(d);
                 d = d + a;
             }
@@ -136,9 +192,9 @@ impl Rasterizer {
         values
     }
 
-    fn put_pixels(&self, cx: i32, cy: i32, color: Rgb<f32>, data: &mut Vec<u8>) {
-        let w = self.canvas.width() as f32;
-        let h = self.canvas.height() as f32;
+    fn put_pixels(&mut self, cx: i32, cy: i32, color: Rgb<f32>) {
+        let w = self.weight as f32;
+        let h = self.height as f32;
 
 
         let x = (w / 2.0 + cx as f32).ceil();
@@ -151,9 +207,9 @@ impl Rasterizer {
         info!("c[{:}:{:}] / s[{:}:{:}]", cx, cy, x, y);
 
         let offset: usize = (4.0 * (x + w * y)) as usize;
-        data[offset + 0] = color.r as u8;
-        data[offset + 1] = color.g as u8;
-        data[offset + 2] = color.b as u8;
-        data[offset + 3] = 255;
+        self.data[offset + 0] = color.r as u8;
+        self.data[offset + 1] = color.g as u8;
+        self.data[offset + 2] = color.b as u8;
+        self.data[offset + 3] = 255;
     }
 }

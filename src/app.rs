@@ -9,7 +9,6 @@ use winit::platform::web::{EventLoopExtWebSys, WindowAttributesExtWebSys};
 use winit::window::{Window, WindowId};
 use yew::prelude::*;
 use crate::components::rasterization::RasterizationCanvas;
-use crate::components::raytracing::{RaytracingCanvas};
 use crate::components::section::Section;
 
 // Skip formatting everything whose name is `html`

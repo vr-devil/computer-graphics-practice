@@ -9,6 +9,7 @@ use winit::platform::web::{EventLoopExtWebSys, WindowAttributesExtWebSys};
 use winit::window::{Window, WindowId};
 use yew::prelude::*;
 use crate::components::rasterization::RasterizationCanvas;
+use crate::components::raytracing::RaytracingCanvas;
 use crate::components::section::Section;
 
 // Skip formatting everything whose name is `html`
@@ -58,15 +59,15 @@ impl Component for App {
                     <p class="my-4">{"这是学习《"}<a href="https://gabrielgambetta.com/computer-graphics-from-scratch/" target="_blank">{"Computer Graphics from Scratch"}</a>{"》的课后实践。"}</p>
                 </header>
                 <main class="grid gap-8">
-                    // <Section
-                    //     title="部分1: 光线追踪(Raytracing)"
-                    //     subtitle="基于CPU实现的光线追踪，包括基本光线追踪逻辑、光照效果、阴影与反射光。"
-                    // >
-                    //     <RaytracingCanvas />
-                    // </Section>
+                    <Section
+                        title="部分1: 光线追踪(Raytracing)"
+                        subtitle="基于CPU实现的光线追踪，包括基本光线追踪逻辑、光照效果、阴影与反射光。"
+                    >
+                        <RaytracingCanvas />
+                    </Section>
                     <Section
                         title="部分2: 光栅化(Rasterization)"
-                        subtitle="基于CPU实现的光栅化。"
+                        subtitle="基于CPU实现的光栅化，绘制线段、三角形、填充、填充着色等。"
                     >
                         <RasterizationCanvas />
                     </Section>

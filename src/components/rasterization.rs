@@ -76,7 +76,13 @@ impl Rasterizer {
         drawer.draw_line(Vec2::new(-150.0, 150.0), Vec2::new(150.0, -150.0), color);
         drawer.draw_line(Vec2::new(-150.0, 0.0), Vec2::new(150.0, -0.0), color);
         drawer.draw_line(Vec2::new(0.0, 150.0), Vec2::new(0.0, -150.0), color);
-        drawer.draw_filled_triangle(Vec2::new(0.0, 85.0), Vec2::new(-120.0, -70.0), Vec2::new(120.0, -20.0), color);
+        drawer.draw_filled_triangle(Vec2::new(-120.0, -70.0), Vec2::new(0.0, 85.0), Vec2::new(120.0, -20.0), color);
+        drawer.draw_shaded_triangle(
+            Point { coord: Vec2::new(-120.0, 70.0), h: 1.0 },
+            Point { coord: Vec2::new(0.0, 85.0), h: 0.3 },
+            Point { coord: Vec2::new(120.0, -20.0), h: 0.5 },
+            Rgb::new(0.0, 255.0, 0.0),
+        );
 
         let end = self.performance.now();
         info!("execution: {:?}", end - start);
@@ -85,6 +91,11 @@ impl Rasterizer {
 
         context.put_image_data(&data, 0.0, 0.0).expect("TODO: panic message");
     }
+}
+
+struct Point {
+    coord: Vec2,
+    h: f32, //color intensity
 }
 
 struct Drawer {
@@ -166,7 +177,67 @@ impl Drawer {
         }
     }
 
-    fn swap(&self, p0: &mut Vec2, p1: &mut Vec2) {
+    fn draw_shaded_triangle(&mut self, mut p0: Point, mut p1: Point, mut p2: Point, color: Rgb<f32>) {
+        if p1.coord.y < p0.coord.y {
+            self.swap(&mut p1.coord, &mut p0.coord)
+        }
+
+        if p2.coord.y < p0.coord.y {
+            self.swap(&mut p2.coord, &mut p0.coord)
+        }
+
+        if p2.coord.y < p1.coord.y {
+            self.swap(&mut p2.coord, &mut p1.coord)
+        }
+
+        let mut x01 = self.interpolate(p0.coord.y, p0.coord.x, p1.coord.y, p1.coord.x);
+        let mut h01 = self.interpolate(p0.coord.y, p0.h, p1.coord.y, p1.h);
+
+        let x12 = self.interpolate(p1.coord.y, p1.coord.x, p2.coord.y, p2.coord.x);
+        let h12 = self.interpolate(p1.coord.y, p1.h, p2.coord.y, p2.h);
+
+        let x02 = self.interpolate(p0.coord.y, p0.coord.x, p2.coord.y, p2.coord.x);
+        let h02 = self.interpolate(p0.coord.y, p0.h, p2.coord.y, p2.h);
+
+        x01.remove(x01.len() - 1);
+        let x012 = [x01, x12].concat();
+
+        h01.remove(h01.len() - 1);
+        let h012 = [h01, h12].concat();
+
+        let x_left;
+        let h_left;
+        let x_right;
+        let h_right;
+
+        let m = x012.len() / 2;
+        if x02[m] < x012[m] {
+            x_left = x02;
+            h_left = h02;
+
+            x_right = x012;
+            h_right = h012;
+        } else {
+            x_left = x012;
+            h_left = h012;
+
+            x_right = x02;
+            h_right = h02;
+        }
+
+        for y in p0.coord.y as i32..=p2.coord.y as i32 {
+            let i = (y - p0.coord.y as i32) as usize;
+            let x_l = x_left[i];
+            let x_r = x_right[i];
+
+            let h_segment = self.interpolate(x_l, h_left[i], x_r, h_right[i]);
+            for x in x_l as i32..=x_r as i32 {
+                let shaded_color = color * h_segment[(x - x_l as i32) as usize];
+                self.put_pixels(x, y, shaded_color);
+            }
+        }
+    }
+    fn swap(&mut self, p0: &mut Vec2, p1: &mut Vec2) {
         let x = p0.x;
         let y = p0.y;
         p0.x = p1.x;

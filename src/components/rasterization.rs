@@ -1,5 +1,5 @@
 use log::info;
-use nalgebra_glm::{Vec2};
+use nalgebra_glm::{Vec2, Vec3};
 use rgb::Rgb;
 use wasm_bindgen::{Clamped, JsCast};
 use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, ImageData, Performance, window};
@@ -67,8 +67,8 @@ impl Rasterizer {
                 .unwrap()
                 .data()
                 .0,
-            weight: w,
-            height: h,
+            canvas_size: Rectangle{w: w as i32, h: h as i32},
+            viewport_size: Rectangle{w: 1, h:1},
         };
 
         let color = Rgb::new(255.0, 255.0, 255.0);
@@ -83,6 +83,17 @@ impl Rasterizer {
             Point { coord: Vec2::new(120.0, -20.0), h: 0.5 },
             Rgb::new(0.0, 255.0, 0.0),
         );
+        drawer.draw_cube(&Cube{
+            af: Vec3::new(-2.0, -0.5, 5.0),
+            bf: Vec3::new(-2.0, 0.5, 5.0),
+            cf: Vec3::new(-1.0, 0.5, 5.0),
+            df: Vec3::new( -1.0, -0.5, 5.0),
+
+            ab: Vec3::new(-2.0, -0.5, 6.0),
+            bb: Vec3::new(-2.0, 0.5, 6.0),
+            cb: Vec3::new(-1.0, 0.5, 6.0),
+            db: Vec3::new( -1.0, -0.5, 6.0),
+        });
 
         let end = self.performance.now();
         info!("execution: {:?}", end - start);
@@ -98,10 +109,29 @@ struct Point {
     h: f32, //color intensity
 }
 
+struct Cube {
+    // front vertexes
+    pub af: Vec3,
+    pub bf: Vec3,
+    pub cf: Vec3,
+    pub df: Vec3,
+
+    // back vertexes
+    pub ab: Vec3,
+    pub bb: Vec3,
+    pub cb: Vec3,
+    pub db: Vec3
+}
+
+struct Rectangle {
+    pub w: i32,
+    pub h: i32,
+}
+
 struct Drawer {
     data: Vec<u8>,
-    weight: u32,
-    height: u32,
+    canvas_size: Rectangle,
+    viewport_size: Rectangle,
 }
 
 impl Drawer {
@@ -237,6 +267,27 @@ impl Drawer {
             }
         }
     }
+
+    fn draw_cube(&mut self, cube: &Cube) {
+        let blue = Rgb::new(0.0, 0.0, 255.0);
+        self.draw_line(self.project_vertex(&cube.af), self.project_vertex(&cube.bf), blue);
+        self.draw_line(self.project_vertex(&cube.bf), self.project_vertex(&cube.cf), blue);
+        self.draw_line(self.project_vertex(&cube.cf), self.project_vertex(&cube.df), blue);
+        self.draw_line(self.project_vertex(&cube.df), self.project_vertex(&cube.af), blue);
+
+        let red = Rgb::new(255.0, 0.0, 0.0);
+        self.draw_line(self.project_vertex(&cube.ab), self.project_vertex(&cube.bb), red);
+        self.draw_line(self.project_vertex(&cube.bb), self.project_vertex(&cube.cb), red);
+        self.draw_line(self.project_vertex(&cube.cb), self.project_vertex(&cube.db), red);
+        self.draw_line(self.project_vertex(&cube.db), self.project_vertex(&cube.ab), red);
+
+        let green = Rgb::new(0.0, 255.0, 0.0);
+        self.draw_line(self.project_vertex(&cube.af), self.project_vertex(&cube.ab), green);
+        self.draw_line(self.project_vertex(&cube.bf), self.project_vertex(&cube.bb), green);
+        self.draw_line(self.project_vertex(&cube.cf), self.project_vertex(&cube.cb), green);
+        self.draw_line(self.project_vertex(&cube.df), self.project_vertex(&cube.db), green);
+    }
+
     fn swap(&mut self, p0: &mut Vec2, p1: &mut Vec2) {
         let x = p0.x;
         let y = p0.y;
@@ -252,7 +303,7 @@ impl Drawer {
         if i0 == i1 {
             values.push(d0)
         } else {
-            let a = (d1 - d0) / (i1 - i0) as f32;
+            let a = (d1 - d0) / (i1 - i0);
             let mut d = d0;
             for _ in i0 as i32..=i1 as i32 {
                 values.push(d);
@@ -263,9 +314,20 @@ impl Drawer {
         values
     }
 
+    fn viewport_to_canvas(&self, x: f32, y: f32) -> Vec2 {
+        Vec2::new(
+            x * self.canvas_size.w as f32 / self.viewport_size.w as f32,
+            y * self.canvas_size.h as f32 / self.viewport_size.h as f32,
+        )
+    }
+
+    fn project_vertex(&self, v: &Vec3) -> Vec2 {
+        self.viewport_to_canvas(v.x * 1.0 / v.z, v.y * 1.0 / v.z)
+    }
+
     fn put_pixels(&mut self, cx: i32, cy: i32, color: Rgb<f32>) {
-        let w = self.weight as f32;
-        let h = self.height as f32;
+        let w = self.canvas_size.w as f32;
+        let h = self.canvas_size.h as f32;
 
 
         let x = (w / 2.0 + cx as f32).ceil();

@@ -135,7 +135,14 @@ impl Rasterizer {
             t.z += 7.0;
         }
 
+
         drawer.render_object(&cube.vertices, &cube.triangles);
+
+        let instances = vec![
+            Instance {model: &cube, position: Vec3::new(-3.5, 4.5, 7.0)},
+            Instance {model: &cube, position: Vec3::new(1.25, 5.5, 7.5)}
+        ];
+        drawer.render_scene(&instances);
 
         let end = self.performance.now();
         info!("execution: {:?}", end - start);
@@ -193,6 +200,11 @@ struct Model {
     pub triangles: Vec<Triangle>,
 }
 
+struct Instance<'a> {
+    pub model: &'a Model,
+    pub position: Vec3,
+}
+
 struct Drawer {
     data: Vec<u8>,
     canvas_size: Rectangle,
@@ -200,6 +212,25 @@ struct Drawer {
 }
 
 impl Drawer {
+
+    fn render_scene(&mut self, instances: &Vec<Instance>) {
+        for instance in instances {
+            self.render_instance(instance)
+        }
+    }
+
+    fn render_instance(&mut self, instance: &Instance) {
+        let mut projected = vec![];
+        let model = instance.model;
+        for v in model.vertices.iter() {
+            let p = v + instance.position;
+            projected.push(self.project_vertex(&p))
+        }
+        for t in model.triangles.iter() {
+            self.render_triangle(&t, &projected);
+        }
+    }
+
     fn render_object(&mut self, vertices: &Vec<Vec3>, triangles: &Vec<Triangle>) {
         let mut projected = vec![];
 

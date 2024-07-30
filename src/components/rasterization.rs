@@ -67,8 +67,8 @@ impl Rasterizer {
                 .unwrap()
                 .data()
                 .0,
-            canvas_size: Rectangle{w: w as i32, h: h as i32},
-            viewport_size: Rectangle{w: 1, h:1},
+            canvas_size: Rectangle { w: w as i32, h: h as i32 },
+            viewport_size: Rectangle { w: 1, h: 1 },
         };
 
         let color = Rgb::new(255.0, 255.0, 255.0);
@@ -83,17 +83,59 @@ impl Rasterizer {
             Point { coord: Vec2::new(120.0, -20.0), h: 0.5 },
             Rgb::new(0.0, 255.0, 0.0),
         );
-        drawer.draw_cube(&Cube{
+        drawer.draw_cube(&Cube {
             af: Vec3::new(-2.0, -0.5, 5.0),
             bf: Vec3::new(-2.0, 0.5, 5.0),
             cf: Vec3::new(-1.0, 0.5, 5.0),
-            df: Vec3::new( -1.0, -0.5, 5.0),
+            df: Vec3::new(-1.0, -0.5, 5.0),
 
             ab: Vec3::new(-2.0, -0.5, 6.0),
             bb: Vec3::new(-2.0, 0.5, 6.0),
             cb: Vec3::new(-1.0, 0.5, 6.0),
-            db: Vec3::new( -1.0, -0.5, 6.0),
+            db: Vec3::new(-1.0, -0.5, 6.0),
         });
+
+        let red: Rgb<f32> = Rgb::new(255.0, 0.0, 0.0);
+        let green: Rgb<f32> = Rgb::new(0.0, 255.0, 0.0);
+        let blue: Rgb<f32> = Rgb::new(0.0, 0.0, 255.0);
+        let yellow: Rgb<f32> = Rgb::new(255.0, 255.0, 0.0);
+        let purple: Rgb<f32> = Rgb::new(255.0, 0.0, 255.0);
+        let cyan: Rgb<f32> = Rgb::new(0.0, 255.0, 255.0);
+
+        let mut cube = Model {
+            name: ModelName::Cube,
+            vertices: vec![
+                Vec3::new(1.0, 1.0, 1.0),
+                Vec3::new(-1.0, 1.0, 1.0),
+                Vec3::new(-1.0, -1.0, 1.0),
+                Vec3::new(1.0, -1.0, 1.0),
+                Vec3::new(1.0, 1.0, -1.0),
+                Vec3::new(-1.0, 1.0, -1.0),
+                Vec3::new(-1.0, -1.0, -1.0),
+                Vec3::new(1.0, -1.0, -1.0),
+            ],
+            triangles: vec![
+                Triangle::new(0, 1, 2, red.clone()),
+                Triangle::new(0, 2, 3, red.clone()),
+                Triangle::new(4, 0, 3, green.clone()),
+                Triangle::new(4, 3, 7, green.clone()),
+                Triangle::new(5, 4, 7, blue.clone()),
+                Triangle::new(5, 7, 6, blue.clone()),
+                Triangle::new(1, 5, 6, yellow.clone()),
+                Triangle::new(1, 6, 2, yellow.clone()),
+                Triangle::new(4, 5, 1, purple.clone()),
+                Triangle::new(4, 1, 0, purple.clone()),
+                Triangle::new(2, 6, 7, cyan.clone()),
+                Triangle::new(2, 7, 3, cyan.clone()),
+            ],
+        };
+
+        for t in cube.vertices.iter_mut() {
+            t.x += 1.5;
+            t.z += 7.0;
+        }
+
+        drawer.render_object(&cube.vertices, &cube.triangles);
 
         let end = self.performance.now();
         info!("execution: {:?}", end - start);
@@ -120,7 +162,7 @@ struct Cube {
     pub ab: Vec3,
     pub bb: Vec3,
     pub cb: Vec3,
-    pub db: Vec3
+    pub db: Vec3,
 }
 
 struct Rectangle {
@@ -128,10 +170,56 @@ struct Rectangle {
     pub h: i32,
 }
 
+struct Triangle {
+    pub a: usize,
+    pub b: usize,
+    pub c: usize,
+    pub color: Rgb<f32>,
+}
+
+impl Triangle {
+    fn new(a: usize, b: usize, c: usize, color: Rgb<f32>) -> Self {
+        Self { a, b, c, color }
+    }
+}
+
+enum ModelName {
+    Cube,
+}
+
+struct Model {
+    pub name: ModelName,
+    pub vertices: Vec<Vec3>,
+    pub triangles: Vec<Triangle>,
+}
+
 struct Drawer {
     data: Vec<u8>,
     canvas_size: Rectangle,
     viewport_size: Rectangle,
+}
+
+impl Drawer {
+    fn render_object(&mut self, vertices: &Vec<Vec3>, triangles: &Vec<Triangle>) {
+        let mut projected = vec![];
+
+        for v in vertices {
+            projected.push(self.project_vertex(v))
+        }
+
+        for t in triangles {
+            self.render_triangle(t, &projected);
+        }
+    }
+
+    fn render_triangle(&mut self, triangle: &Triangle, projected: &Vec<Vec2>) {
+        self.draw_wireframe_triangle(
+            &projected[triangle.a],
+            &projected[triangle.b],
+            &projected[triangle.c],
+            triangle.color.clone(),
+        );
+    }
 }
 
 impl Drawer {
@@ -162,6 +250,12 @@ impl Drawer {
                 self.put_pixels(xs[x] as i32, y, color);
             }
         }
+    }
+
+    fn draw_wireframe_triangle(&mut self, p0: &Vec2, p1: &Vec2, p2: &Vec2, color: Rgb<f32>) {
+        self.draw_line(p0.clone(), p1.clone(), color);
+        self.draw_line(p1.clone(), p2.clone(), color);
+        self.draw_line(p2.clone(), p0.clone(), color);
     }
 
     fn draw_filled_triangle(&mut self, mut p0: Vec2, mut p1: Vec2, mut p2: Vec2, color: Rgb<f32>) {

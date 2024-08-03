@@ -1,5 +1,5 @@
 use log::info;
-use nalgebra_glm::{Vec2, Vec3};
+use nalgebra_glm::{degrees, identity, inverse, Mat4x4, radians, rotate_y, rotation, scale, scaling, TMat4, translate, translation, transpose, vec1, Vec2, Vec3, vec3, Vec4};
 use rgb::Rgb;
 use wasm_bindgen::{Clamped, JsCast};
 use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, ImageData, Performance, window};
@@ -58,7 +58,7 @@ impl Rasterizer {
         let w = self.canvas.width();
         let h = self.canvas.height();
 
-        info!("w{:}/h{:}", w, h);
+        // info!("w{:}/h{:}", w, h);
 
 
         let mut drawer = Drawer {
@@ -76,24 +76,24 @@ impl Rasterizer {
         drawer.draw_line(Vec2::new(-150.0, 150.0), Vec2::new(150.0, -150.0), color);
         drawer.draw_line(Vec2::new(-150.0, 0.0), Vec2::new(150.0, -0.0), color);
         drawer.draw_line(Vec2::new(0.0, 150.0), Vec2::new(0.0, -150.0), color);
-        drawer.draw_filled_triangle(Vec2::new(-120.0, -70.0), Vec2::new(0.0, 85.0), Vec2::new(120.0, -20.0), color);
-        drawer.draw_shaded_triangle(
-            Point { coord: Vec2::new(-120.0, 70.0), h: 1.0 },
-            Point { coord: Vec2::new(0.0, 85.0), h: 0.3 },
-            Point { coord: Vec2::new(120.0, -20.0), h: 0.5 },
-            Rgb::new(0.0, 255.0, 0.0),
-        );
-        drawer.draw_cube(&Cube {
-            af: Vec3::new(-2.0, -0.5, 5.0),
-            bf: Vec3::new(-2.0, 0.5, 5.0),
-            cf: Vec3::new(-1.0, 0.5, 5.0),
-            df: Vec3::new(-1.0, -0.5, 5.0),
-
-            ab: Vec3::new(-2.0, -0.5, 6.0),
-            bb: Vec3::new(-2.0, 0.5, 6.0),
-            cb: Vec3::new(-1.0, 0.5, 6.0),
-            db: Vec3::new(-1.0, -0.5, 6.0),
-        });
+        // drawer.draw_filled_triangle(Vec2::new(-120.0, -70.0), Vec2::new(0.0, 85.0), Vec2::new(120.0, -20.0), color);
+        // drawer.draw_shaded_triangle(
+        //     Point { coord: Vec2::new(-120.0, 70.0), h: 1.0 },
+        //     Point { coord: Vec2::new(0.0, 85.0), h: 0.3 },
+        //     Point { coord: Vec2::new(120.0, -20.0), h: 0.5 },
+        //     Rgb::new(0.0, 255.0, 0.0),
+        // );
+        // drawer.draw_cube(&Cube {
+        //     af: Vec3::new(-2.0, -0.5, 5.0),
+        //     bf: Vec3::new(-2.0, 0.5, 5.0),
+        //     cf: Vec3::new(-1.0, 0.5, 5.0),
+        //     df: Vec3::new(-1.0, -0.5, 5.0),
+        //
+        //     ab: Vec3::new(-2.0, -0.5, 6.0),
+        //     bb: Vec3::new(-2.0, 0.5, 6.0),
+        //     cb: Vec3::new(-1.0, 0.5, 6.0),
+        //     db: Vec3::new(-1.0, -0.5, 6.0),
+        // });
 
         let red: Rgb<f32> = Rgb::new(255.0, 0.0, 0.0);
         let green: Rgb<f32> = Rgb::new(0.0, 255.0, 0.0);
@@ -130,24 +130,18 @@ impl Rasterizer {
             ],
         };
 
-        for t in cube.vertices.iter_mut() {
-            t.x += 1.5;
-            t.z += 7.0;
-        }
 
-
-        drawer.render_object(&cube.vertices, &cube.triangles);
-
+        let camera = Camera { position: Vec3::new(-3.0, 1.0, 2.0), rotation: -30.0 };
         let instances = vec![
-            Instance {model: &cube, position: Vec3::new(-3.5, 4.5, 7.0)},
-            Instance {model: &cube, position: Vec3::new(1.25, 5.5, 7.5)}
+            Instance { model: &cube, position: vec3(-1.5, 0.0, 7.0), rotation: 0.0, scale: 0.75 },
+            Instance { model: &cube, position: vec3(1.25, 2.5, 7.5), rotation: 195.0, scale: 1.0 },
         ];
-        drawer.render_scene(&instances);
+        drawer.render_scene(&camera, &instances);
 
         let end = self.performance.now();
         info!("execution: {:?}", end - start);
 
-        let data = ImageData::new_with_u8_clamped_array(Clamped(drawer.data.as_slice()), w as u32).unwrap();
+        let data = ImageData::new_with_u8_clamped_array(Clamped(drawer.data.as_slice()), w).unwrap();
 
         context.put_image_data(&data, 0.0, 0.0).expect("TODO: panic message");
     }
@@ -190,6 +184,17 @@ impl Triangle {
     }
 }
 
+struct Camera {
+    pub position: Vec3,
+    pub rotation: f32,
+}
+
+impl Camera {
+    fn get_matrix(&self) -> Mat4x4 {
+        rotate_y(&identity(), self.rotation.to_radians()) * translation(&-self.position)
+    }
+}
+
 enum ModelName {
     Cube,
 }
@@ -202,7 +207,21 @@ struct Model {
 
 struct Instance<'a> {
     pub model: &'a Model,
+
+    pub scale: f32,
+    pub rotation: f32,
     pub position: Vec3,
+}
+
+
+impl<'a> Instance<'a> {
+    fn transform(&self) -> Mat4x4 {
+        let s = scaling(&vec3(self.scale, self.scale, self.scale));
+        let r = rotate_y(&identity(), self.rotation.to_radians());
+        let t = translation(&self.position);
+
+        t * r * s
+    }
 }
 
 struct Drawer {
@@ -212,22 +231,22 @@ struct Drawer {
 }
 
 impl Drawer {
-
-    fn render_scene(&mut self, instances: &Vec<Instance>) {
+    fn render_scene(&mut self, camera: &Camera, instances: &Vec<Instance>) {
+        let camera_matrix = camera.get_matrix();
         for instance in instances {
-            self.render_instance(instance)
+            self.render_model(&instance.model, &(camera_matrix * instance.transform()))
         }
     }
 
-    fn render_instance(&mut self, instance: &Instance) {
+    fn render_model(&mut self, model: &Model, transform: &Mat4x4) {
         let mut projected = vec![];
-        let model = instance.model;
         for v in model.vertices.iter() {
-            let p = v + instance.position;
-            projected.push(self.project_vertex(&p))
+            let h = Vec4::new(v.x, v.y, v.z, 1.0);
+            projected.push(self.project_vertex(&(transform * h).xyz()));
         }
+
         for t in model.triangles.iter() {
-            self.render_triangle(&t, &projected);
+            self.render_triangle(t, &projected);
         }
     }
 
@@ -462,7 +481,7 @@ impl Drawer {
             return;
         }
 
-        info!("c[{:}:{:}] / s[{:}:{:}]", cx, cy, x, y);
+        // info!("c[{:}:{:}] / s[{:}:{:}]", cx, cy, x, y);
 
         let offset: usize = (4.0 * (x + w * y)) as usize;
         self.data[offset + 0] = color.r as u8;

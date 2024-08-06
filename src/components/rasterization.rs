@@ -1,5 +1,5 @@
 use log::info;
-use nalgebra_glm::{degrees, identity, inverse, Mat4x4, radians, rotate_y, rotation, scale, scaling, TMat4, translate, translation, transpose, vec1, Vec2, Vec3, vec3, Vec4};
+use nalgebra_glm::{identity, Mat4x4, rotate_y, scaling, translation, Vec2, Vec3, vec3, Vec4, vec4};
 use rgb::Rgb;
 use wasm_bindgen::{Clamped, JsCast};
 use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, ImageData, Performance, window};
@@ -102,8 +102,7 @@ impl Rasterizer {
         let purple: Rgb<f32> = Rgb::new(255.0, 0.0, 255.0);
         let cyan: Rgb<f32> = Rgb::new(0.0, 255.0, 255.0);
 
-        let mut cube = Model {
-            name: ModelName::Cube,
+        let cube = Model {
             vertices: vec![
                 Vec3::new(1.0, 1.0, 1.0),
                 Vec3::new(-1.0, 1.0, 1.0),
@@ -128,15 +127,29 @@ impl Rasterizer {
                 Triangle::new(2, 6, 7, cyan.clone()),
                 Triangle::new(2, 7, 3, cyan.clone()),
             ],
+            bounds_center: Default::default(),
+            bounds_radius: 3.0f32.sqrt(),
         };
 
 
-        let camera = Camera { position: Vec3::new(-3.0, 1.0, 2.0), rotation: -30.0 };
+        let s2:f32 = 1.0 / 2.0f32.sqrt();
+        let camera = Camera {
+            position: Vec3::new(-3.0, 1.0, 2.0),
+            rotation: -30.0,
+            planes: vec![
+                Plane{normal: vec3(0.0, 0.0, 1.0), distance: -1.0 }, // Near,
+                Plane{normal: vec3(s2, 0.0, s2), distance: 0.0 }, // Left,
+                Plane{normal: vec3(-s2, 0.0, s2), distance: -1.0 }, // Near,
+                Plane{normal: vec3(0.0, -s2, s2), distance: -1.0 }, // Near,
+                Plane{normal: vec3(0.0, s2, s2), distance: -1.0 }, // Near,
+            ],
+        };
         let instances = vec![
-            Instance { model: &cube, position: vec3(-1.5, 0.0, 7.0), rotation: 0.0, scale: 0.75 },
-            Instance { model: &cube, position: vec3(1.25, 2.5, 7.5), rotation: 195.0, scale: 1.0 },
+            Instance { model: cube.clone(), position: vec3(-1.5, 0.0, 7.0), rotation: 0.0, scale: 0.75 },
+            Instance { model: cube.clone(), position: vec3(1.25, 2.5, 7.5), rotation: 195.0, scale: 1.0 },
+            Instance { model: cube.clone(), position: vec3(3.5, -1.0, 7.0), rotation: 195.0, scale: 1.0 },
         ];
-        drawer.render_scene(&camera, &instances);
+        drawer.render_scene(&camera, instances);
 
         let end = self.performance.now();
         info!("execution: {:?}", end - start);
@@ -171,6 +184,7 @@ struct Rectangle {
     pub h: i32,
 }
 
+#[derive(Clone)]
 struct Triangle {
     pub a: usize,
     pub b: usize,
@@ -187,6 +201,7 @@ impl Triangle {
 struct Camera {
     pub position: Vec3,
     pub rotation: f32,
+    pub planes: Vec<Plane>,
 }
 
 impl Camera {
@@ -195,26 +210,33 @@ impl Camera {
     }
 }
 
-enum ModelName {
-    Cube,
+struct Plane {
+    normal: Vec3,
+    distance: f32,
 }
 
+
+
+
+#[derive(Clone)]
 struct Model {
-    pub name: ModelName,
     pub vertices: Vec<Vec3>,
     pub triangles: Vec<Triangle>,
+    pub bounds_center: Vec3,
+    pub bounds_radius: f32,
 }
 
-struct Instance<'a> {
-    pub model: &'a Model,
+
+#[derive(Clone)]
+struct Instance {
+    pub model: Model,
 
     pub scale: f32,
     pub rotation: f32,
     pub position: Vec3,
 }
 
-
-impl<'a> Instance<'a> {
+impl Instance {
     fn transform(&self) -> Mat4x4 {
         let s = scaling(&vec3(self.scale, self.scale, self.scale));
         let r = rotate_y(&identity(), self.rotation.to_radians());
@@ -231,18 +253,22 @@ struct Drawer {
 }
 
 impl Drawer {
-    fn render_scene(&mut self, camera: &Camera, instances: &Vec<Instance>) {
+    fn render_scene(&mut self, camera: &Camera, instances: Vec<Instance>) {
         let camera_matrix = camera.get_matrix();
         for instance in instances {
-            self.render_model(&instance.model, &(camera_matrix * instance.transform()))
+            let t = instance.transform();
+            let clipped_instance = self.transform_and_clip(&camera, instance, camera_matrix * t);
+
+            if let Some(instance) = clipped_instance {
+                self.render_model(&instance.model)
+            }
         }
     }
 
-    fn render_model(&mut self, model: &Model, transform: &Mat4x4) {
+    fn render_model(&mut self, model: &Model) {
         let mut projected = vec![];
         for v in model.vertices.iter() {
-            let h = Vec4::new(v.x, v.y, v.z, 1.0);
-            projected.push(self.project_vertex(&(transform * h).xyz()));
+            projected.push(self.project_vertex(&v));
         }
 
         for t in model.triangles.iter() {
@@ -269,6 +295,79 @@ impl Drawer {
             &projected[triangle.c],
             triangle.color.clone(),
         );
+    }
+}
+
+impl Drawer {
+    fn transform_and_clip(&self, camera: &Camera, mut instance: Instance, transform: Mat4x4) -> Option<Instance> {
+
+        let bc = &instance.model.bounds_center;
+        let center = transform * vec4(bc.x, bc.y, bc.z, 1.0);
+        let radius = instance.model.bounds_radius * instance.scale;
+
+        for plane in camera.planes.iter() {
+            let distance = self.signed_distance(plane, &center.xyz());
+            if distance < -radius {
+                return None
+            }
+        }
+
+        /*
+         * transform
+         */
+        let mut vertices: Vec<Vec3> = vec![];
+        for v in instance.model.vertices.iter() {
+            let h = Vec4::new(v.x, v.y, v.z, 1.0);
+            vertices.push((transform * h).xyz())
+        }
+
+        let mut triangles = vec![];
+        for plane in camera.planes.iter() {
+            let mut new_triangles = vec![];
+            for triangle in instance.model.triangles.iter() {
+                let clipped_triangles = self.clip_triangle(triangle, &vertices, plane);
+                new_triangles.extend(clipped_triangles)
+            }
+            triangles.extend(new_triangles)
+        }
+
+        Some(Instance{
+            model: Model {
+                vertices,
+                triangles,
+                bounds_center: center.xyz(),
+                bounds_radius: radius,
+            },
+            scale: 1.0,
+            rotation: 0.0,
+            position: Default::default(),
+        })
+    }
+
+    fn clip_triangle(&self, triangle: &Triangle, vertices: &Vec<Vec3>, plane: &Plane) -> Vec<Triangle> {
+        let a = &vertices[triangle.a];
+        let b = &vertices[triangle.b];
+        let c = &vertices[triangle.c];
+
+        let d0 = self.signed_distance(plane, a);
+        let d1 = self.signed_distance(plane, b);
+        let d2 = self.signed_distance(plane, c);
+
+        let in_count = [d0, d1, d2].iter().filter(|&&x| x > 0.0).count();
+
+        if in_count == 3 {
+            vec![(*triangle).clone()]
+        } else if in_count == 0 {
+            vec![]
+        } else if in_count == 1 {
+            vec![]
+        } else {
+            vec![]
+        }
+    }
+
+    fn signed_distance(&self, plane: &Plane, vertex: &Vec3) -> f32 {
+        vertex.dot(&plane.normal) + plane.distance
     }
 }
 

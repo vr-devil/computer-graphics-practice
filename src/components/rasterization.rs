@@ -67,6 +67,7 @@ impl Rasterizer {
                 .unwrap()
                 .data()
                 .0,
+            depth_buf: vec![f32::INFINITY; (w * h) as usize],
             canvas_size: Rectangle { w: w as i32, h: h as i32 },
             viewport_size: Rectangle { w: 1, h: 1 },
         };
@@ -246,6 +247,7 @@ impl Instance {
 
 struct Renderer {
     data: Vec<u8>,
+    depth_buf: Vec<f32>,
     canvas_size: Rectangle,
     viewport_size: Rectangle,
 }
@@ -270,36 +272,23 @@ impl Renderer {
         }
 
         for t in model.triangles.iter() {
-            self.render_triangle(t, &projected);
+            self.render_triangle(t, &projected, &model.vertices);
         }
     }
 
-    fn render_object(&mut self, vertices: &Vec<Vec3>, triangles: &Vec<Triangle>) {
-        let mut projected = vec![];
-
-        for v in vertices {
-            projected.push(self.project_vertex(v))
-        }
-
-        for t in triangles {
-            self.render_triangle(t, &projected);
-        }
-    }
-
-    fn render_triangle(&mut self, triangle: &Triangle, projected: &Vec<Vec2>) {
+    fn render_triangle(&mut self, triangle: &Triangle, projected: &Vec<Vec2>, vertices: &Vec<Vec3>) {
         self.draw_filled_triangle(
-            projected[triangle.a].clone(),
-            projected[triangle.b].clone(),
-            projected[triangle.c].clone(),
-            triangle.color.clone(),
+            triangle,
+            vertices,
+            projected,
         );
 
-        self.draw_wireframe_triangle(
-            &projected[triangle.a],
-            &projected[triangle.b],
-            &projected[triangle.c],
-            triangle.color.clone(),
-        );
+        // self.draw_wireframe_triangle(
+        //     &projected[triangle.a],
+        //     &projected[triangle.b],
+        //     &projected[triangle.c],
+        //     triangle.color.clone(),
+        // );
     }
 }
 
@@ -394,6 +383,42 @@ impl Renderer {
         p1.y = y;
     }
 
+    fn sort_vertex_indexes(&self, triangle: &Triangle, projected: &Vec<Vec2>) -> (usize, usize, usize) {
+        let mut indexes = (triangle.a, triangle.b, triangle.c);
+
+        if projected[indexes.1].y < projected[indexes.0].y {
+            let swap = indexes.0;
+            indexes.0 = indexes.1;
+            indexes.1 = swap;
+        }
+
+        if projected[indexes.2].y < projected[indexes.0].y {
+            let swap = indexes.0;
+            indexes.0 = indexes.2;
+            indexes.2 = swap;
+        }
+
+        if projected[indexes.2].y < projected[indexes.1].y {
+            let swap = indexes.1;
+            indexes.1 = indexes.2;
+            indexes.2 = swap;
+        }
+
+        indexes
+    }
+
+    fn edge_interpolate(&self, y0: f32, v0: f32, y1: f32, v1: f32, y2: f32, v2: f32) -> (Vec<f32>, Vec<f32>) {
+        let mut x01 = self.interpolate(y0, v0, y1, v1);
+        let x12 = self.interpolate(y1, v1, y2, v2);
+        let x02 = self.interpolate(y0, v0, y2, v2);
+
+        x01.remove(x01.len() - 1);
+
+        let x012 = [x01, x12].concat();
+
+        (x02, x012)
+    }
+
     fn interpolate(&self, i0: f32, d0: f32, i1: f32, d1: f32) -> Vec<f32> {
         let mut values: Vec<f32> = vec![];
 
@@ -410,13 +435,9 @@ impl Renderer {
 
         values
     }
-
 }
 
 impl Renderer {
-
-
-
     fn draw_line(&mut self, mut p0: Vec2, mut p1: Vec2, color: Rgb<f32>) {
         if (p1.x - p0.x).abs() > (p1.y - p0.y).abs() {
             if p0.x > p1.x {
@@ -452,7 +473,20 @@ impl Renderer {
         self.draw_line(p2.clone(), p0.clone(), color);
     }
 
-    fn draw_filled_triangle(&mut self, mut p0: Vec2, mut p1: Vec2, mut p2: Vec2, color: Rgb<f32>) {
+    fn draw_filled_triangle(&mut self, triangle: &Triangle, vertices: &Vec<Vec3>, projected: &Vec<Vec2>) {
+        let (i0, i1, i2) = self.sort_vertex_indexes(triangle, projected);
+
+        let v0 = vertices[i0];
+        let v1 = vertices[i1];
+        let v2 = vertices[i2];
+
+
+        // mut p0: Vec2, mut p1: Vec2, mut p2: Vec2
+        let mut p0 = projected[triangle.a].clone();
+        let mut p1 = projected[triangle.b].clone();
+        let mut p2 = projected[triangle.c].clone();
+        let color = triangle.color.clone();
+
         if p1.y < p0.y {
             self.swap(&mut p1, &mut p0)
         }
@@ -465,23 +499,24 @@ impl Renderer {
             self.swap(&mut p2, &mut p1)
         }
 
-        let mut x01 = self.interpolate(p0.y, p0.x, p1.y, p1.x);
-        let x12 = self.interpolate(p1.y, p1.x, p2.y, p2.x);
-        let x02 = self.interpolate(p0.y, p0.x, p2.y, p2.x);
-
-        x01.remove(x01.len() - 1);
-
-        let x012 = [x01, x12].concat();
+        let (x02, x012) = self.edge_interpolate(p0.y, p0.x, p1.y, p1.x, p2.y, p2.x);
+        let (iz02, iz0123) = self.edge_interpolate(p0.y, 1.0 / v0.z, p1.y, 1.0 / v1.z, p2.y, 1.0 / v2.z);
 
         let x_left;
         let x_right;
+        let z_left;
+        let z_right;
         let m = x012.len() / 2;
         if x02[m] < x012[m] {
             x_left = x02;
             x_right = x012;
+            z_left = iz02;
+            z_right = iz0123;
         } else {
             x_left = x012;
             x_right = x02;
+            z_left = iz0123;
+            z_right = iz02;
         }
 
 
@@ -489,8 +524,14 @@ impl Renderer {
         let y2 = p2.y as i32;
 
         for y in y0..=y2 {
-            for x in x_left[(y - y0) as usize] as i32..=x_right[(y - y0) as usize] as i32 {
-                self.put_pixels(x, y, color);
+            let (xl, xr) = (x_left[(y - y0) as usize] as i32, x_right[(y - y0) as usize] as i32);
+            let (zl, zr) = (z_left[(y - p0.y as i32) as usize], z_right[(y - p0.y as i32) as usize]);
+            let zscan = self.interpolate(xl as f32, zl, xr as f32, zr);
+
+            for x in xl..=xr {
+                if self.update_depth_buf_if_closer(x, y, zscan[(x - xl) as usize] as i32) {
+                    self.put_pixels(x, y, color);
+                }
             }
         }
     }
@@ -555,11 +596,29 @@ impl Renderer {
             }
         }
     }
-
-
 }
 
 impl Renderer {
+    fn update_depth_buf_if_closer(&mut self, x: i32, y: i32, z: i32) -> bool {
+        let w = self.canvas_size.w as f32;
+        let h = self.canvas_size.h as f32;
+
+        let x = (w / 2.0 + x as f32).ceil();
+        let y = (h / 2.0 - y as f32 - 1.0).ceil();
+
+        if x < 0.0 || x >= w || y < 0.0 || y >= h {
+            return false;
+        }
+
+        let offset = (x + w * y) as usize;
+        if self.depth_buf[offset] != 0.0 || self.depth_buf[offset] < z as f32 {
+            self.depth_buf[offset] = z as f32;
+            return true
+        }
+
+        false
+    }
+
     fn put_pixels(&mut self, cx: i32, cy: i32, color: Rgb<f32>) {
         let w = self.canvas_size.w as f32;
         let h = self.canvas_size.h as f32;

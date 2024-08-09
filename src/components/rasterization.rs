@@ -61,7 +61,7 @@ impl Rasterizer {
         // info!("w{:}/h{:}", w, h);
 
 
-        let mut drawer = Drawer {
+        let mut drawer = Renderer {
             data: context
                 .get_image_data(0.0, 0.0, w as f64, h as f64)
                 .unwrap()
@@ -132,16 +132,16 @@ impl Rasterizer {
         };
 
 
-        let s2:f32 = 1.0 / 2.0f32.sqrt();
+        let s2: f32 = 1.0 / 2.0f32.sqrt();
         let camera = Camera {
             position: Vec3::new(-3.0, 1.0, 2.0),
             rotation: -30.0,
             planes: vec![
-                Plane{normal: vec3(0.0, 0.0, 1.0), distance: -1.0 }, // Near,
-                Plane{normal: vec3(s2, 0.0, s2), distance: 0.0 }, // Left,
-                Plane{normal: vec3(-s2, 0.0, s2), distance: -1.0 }, // Near,
-                Plane{normal: vec3(0.0, -s2, s2), distance: -1.0 }, // Near,
-                Plane{normal: vec3(0.0, s2, s2), distance: -1.0 }, // Near,
+                Plane { normal: vec3(0.0, 0.0, 1.0), distance: -1.0 }, // Near,
+                Plane { normal: vec3(s2, 0.0, s2), distance: 0.0 }, // Left,
+                Plane { normal: vec3(-s2, 0.0, s2), distance: -1.0 }, // Near,
+                Plane { normal: vec3(0.0, -s2, s2), distance: -1.0 }, // Near,
+                Plane { normal: vec3(0.0, s2, s2), distance: -1.0 }, // Near,
             ],
         };
         let instances = vec![
@@ -216,8 +216,6 @@ struct Plane {
 }
 
 
-
-
 #[derive(Clone)]
 struct Model {
     pub vertices: Vec<Vec3>,
@@ -246,13 +244,13 @@ impl Instance {
     }
 }
 
-struct Drawer {
+struct Renderer {
     data: Vec<u8>,
     canvas_size: Rectangle,
     viewport_size: Rectangle,
 }
 
-impl Drawer {
+impl Renderer {
     fn render_scene(&mut self, camera: &Camera, instances: Vec<Instance>) {
         let camera_matrix = camera.get_matrix();
         for instance in instances {
@@ -289,6 +287,13 @@ impl Drawer {
     }
 
     fn render_triangle(&mut self, triangle: &Triangle, projected: &Vec<Vec2>) {
+        self.draw_filled_triangle(
+            projected[triangle.a].clone(),
+            projected[triangle.b].clone(),
+            projected[triangle.c].clone(),
+            triangle.color.clone(),
+        );
+
         self.draw_wireframe_triangle(
             &projected[triangle.a],
             &projected[triangle.b],
@@ -298,9 +303,8 @@ impl Drawer {
     }
 }
 
-impl Drawer {
+impl Renderer {
     fn transform_and_clip(&self, camera: &Camera, mut instance: Instance, transform: Mat4x4) -> Option<Instance> {
-
         let bc = &instance.model.bounds_center;
         let center = transform * vec4(bc.x, bc.y, bc.z, 1.0);
         let radius = instance.model.bounds_radius * instance.scale;
@@ -308,7 +312,7 @@ impl Drawer {
         for plane in camera.planes.iter() {
             let distance = self.signed_distance(plane, &center.xyz());
             if distance < -radius {
-                return None
+                return None;
             }
         }
 
@@ -331,7 +335,7 @@ impl Drawer {
             triangles.extend(new_triangles)
         }
 
-        Some(Instance{
+        Some(Instance {
             model: Model {
                 vertices,
                 triangles,
@@ -369,9 +373,50 @@ impl Drawer {
     fn signed_distance(&self, plane: &Plane, vertex: &Vec3) -> f32 {
         vertex.dot(&plane.normal) + plane.distance
     }
+
+    fn viewport_to_canvas(&self, x: f32, y: f32) -> Vec2 {
+        Vec2::new(
+            x * self.canvas_size.w as f32 / self.viewport_size.w as f32,
+            y * self.canvas_size.h as f32 / self.viewport_size.h as f32,
+        )
+    }
+
+    fn project_vertex(&self, v: &Vec3) -> Vec2 {
+        self.viewport_to_canvas(v.x * 1.0 / v.z, v.y * 1.0 / v.z)
+    }
+
+    fn swap(&mut self, p0: &mut Vec2, p1: &mut Vec2) {
+        let x = p0.x;
+        let y = p0.y;
+        p0.x = p1.x;
+        p0.y = p1.y;
+        p1.x = x;
+        p1.y = y;
+    }
+
+    fn interpolate(&self, i0: f32, d0: f32, i1: f32, d1: f32) -> Vec<f32> {
+        let mut values: Vec<f32> = vec![];
+
+        if i0 == i1 {
+            values.push(d0)
+        } else {
+            let a = (d1 - d0) / (i1 - i0);
+            let mut d = d0;
+            for _ in i0 as i32..=i1 as i32 {
+                values.push(d);
+                d = d + a;
+            }
+        }
+
+        values
+    }
+
 }
 
-impl Drawer {
+impl Renderer {
+
+
+
     fn draw_line(&mut self, mut p0: Vec2, mut p1: Vec2, color: Rgb<f32>) {
         if (p1.x - p0.x).abs() > (p1.y - p0.y).abs() {
             if p0.x > p1.x {
@@ -511,63 +556,10 @@ impl Drawer {
         }
     }
 
-    fn draw_cube(&mut self, cube: &Cube) {
-        let blue = Rgb::new(0.0, 0.0, 255.0);
-        self.draw_line(self.project_vertex(&cube.af), self.project_vertex(&cube.bf), blue);
-        self.draw_line(self.project_vertex(&cube.bf), self.project_vertex(&cube.cf), blue);
-        self.draw_line(self.project_vertex(&cube.cf), self.project_vertex(&cube.df), blue);
-        self.draw_line(self.project_vertex(&cube.df), self.project_vertex(&cube.af), blue);
 
-        let red = Rgb::new(255.0, 0.0, 0.0);
-        self.draw_line(self.project_vertex(&cube.ab), self.project_vertex(&cube.bb), red);
-        self.draw_line(self.project_vertex(&cube.bb), self.project_vertex(&cube.cb), red);
-        self.draw_line(self.project_vertex(&cube.cb), self.project_vertex(&cube.db), red);
-        self.draw_line(self.project_vertex(&cube.db), self.project_vertex(&cube.ab), red);
+}
 
-        let green = Rgb::new(0.0, 255.0, 0.0);
-        self.draw_line(self.project_vertex(&cube.af), self.project_vertex(&cube.ab), green);
-        self.draw_line(self.project_vertex(&cube.bf), self.project_vertex(&cube.bb), green);
-        self.draw_line(self.project_vertex(&cube.cf), self.project_vertex(&cube.cb), green);
-        self.draw_line(self.project_vertex(&cube.df), self.project_vertex(&cube.db), green);
-    }
-
-    fn swap(&mut self, p0: &mut Vec2, p1: &mut Vec2) {
-        let x = p0.x;
-        let y = p0.y;
-        p0.x = p1.x;
-        p0.y = p1.y;
-        p1.x = x;
-        p1.y = y;
-    }
-
-    fn interpolate(&self, i0: f32, d0: f32, i1: f32, d1: f32) -> Vec<f32> {
-        let mut values: Vec<f32> = vec![];
-
-        if i0 == i1 {
-            values.push(d0)
-        } else {
-            let a = (d1 - d0) / (i1 - i0);
-            let mut d = d0;
-            for _ in i0 as i32..=i1 as i32 {
-                values.push(d);
-                d = d + a;
-            }
-        }
-
-        values
-    }
-
-    fn viewport_to_canvas(&self, x: f32, y: f32) -> Vec2 {
-        Vec2::new(
-            x * self.canvas_size.w as f32 / self.viewport_size.w as f32,
-            y * self.canvas_size.h as f32 / self.viewport_size.h as f32,
-        )
-    }
-
-    fn project_vertex(&self, v: &Vec3) -> Vec2 {
-        self.viewport_to_canvas(v.x * 1.0 / v.z, v.y * 1.0 / v.z)
-    }
-
+impl Renderer {
     fn put_pixels(&mut self, cx: i32, cy: i32, color: Rgb<f32>) {
         let w = self.canvas_size.w as f32;
         let h = self.canvas_size.h as f32;

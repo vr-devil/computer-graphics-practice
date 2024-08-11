@@ -67,7 +67,7 @@ impl Rasterizer {
                 .unwrap()
                 .data()
                 .0,
-            depth_buf: vec![f32::INFINITY; (w * h) as usize],
+            depth_buf: vec![0.0f32; (w * h) as usize],
             canvas_size: Rectangle { w: w as i32, h: h as i32 },
             viewport_size: Rectangle { w: 1, h: 1 },
         };
@@ -117,38 +117,38 @@ impl Rasterizer {
             triangles: vec![
                 Triangle::new(0, 1, 2, red.clone()),
                 Triangle::new(0, 2, 3, red.clone()),
-                Triangle::new(4, 0, 3, green.clone()),
-                Triangle::new(4, 3, 7, green.clone()),
-                Triangle::new(5, 4, 7, blue.clone()),
-                Triangle::new(5, 7, 6, blue.clone()),
                 Triangle::new(1, 5, 6, yellow.clone()),
                 Triangle::new(1, 6, 2, yellow.clone()),
-                Triangle::new(4, 5, 1, purple.clone()),
-                Triangle::new(4, 1, 0, purple.clone()),
                 Triangle::new(2, 6, 7, cyan.clone()),
                 Triangle::new(2, 7, 3, cyan.clone()),
+                Triangle::new(4, 0, 3, green.clone()),
+                Triangle::new(4, 3, 7, green.clone()),
+                Triangle::new(4, 5, 1, purple.clone()),
+                Triangle::new(4, 1, 0, purple.clone()),
+                Triangle::new(5, 4, 7, blue.clone()),
+                Triangle::new(5, 7, 6, blue.clone()),
             ],
             bounds_center: Default::default(),
             bounds_radius: 3.0f32.sqrt(),
         };
 
 
-        let s2: f32 = 1.0 / 2.0f32.sqrt();
+        let s2 = 1.0 / 2.0f32.sqrt();
         let camera = Camera {
             position: Vec3::new(-3.0, 1.0, 2.0),
             rotation: -30.0,
             planes: vec![
                 Plane { normal: vec3(0.0, 0.0, 1.0), distance: -1.0 }, // Near,
                 Plane { normal: vec3(s2, 0.0, s2), distance: 0.0 }, // Left,
-                Plane { normal: vec3(-s2, 0.0, s2), distance: -1.0 }, // Near,
-                Plane { normal: vec3(0.0, -s2, s2), distance: -1.0 }, // Near,
-                Plane { normal: vec3(0.0, s2, s2), distance: -1.0 }, // Near,
+                Plane { normal: vec3(-s2, 0.0, s2), distance: 0.0 }, // Right,
+                Plane { normal: vec3(0.0, -s2, s2), distance: 0.0 }, // Top,
+                Plane { normal: vec3(0.0, s2, s2), distance: 0.0 }, // Bottom,
             ],
         };
         let instances = vec![
             Instance { model: cube.clone(), position: vec3(-1.5, 0.0, 7.0), rotation: 0.0, scale: 0.75 },
             Instance { model: cube.clone(), position: vec3(1.25, 2.5, 7.5), rotation: 195.0, scale: 1.0 },
-            Instance { model: cube.clone(), position: vec3(3.5, -1.0, 7.0), rotation: 195.0, scale: 1.0 },
+            Instance { model: cube.clone(), position: vec3(3.5, -1.0, 7.0), rotation: 30.0, scale: 1.0 },
         ];
         drawer.render_scene(&camera, instances);
 
@@ -190,12 +190,30 @@ struct Triangle {
     pub a: usize,
     pub b: usize,
     pub c: usize,
+
     pub color: Rgb<f32>,
+    pub h1: f32,
+    pub h2: f32,
+    pub h3: f32,
 }
 
 impl Triangle {
     fn new(a: usize, b: usize, c: usize, color: Rgb<f32>) -> Self {
-        Self { a, b, c, color }
+        Self { a, b, c, color, h1: 1.0, h2: 1.0, h3: 1.0 }
+    }
+
+    fn new_with_intensity(indexes: (usize, usize, usize), intensities: (f32, f32, f32), color: Rgb<f32>) {
+        let (a, b, c) = indexes;
+        let (h1, h2, h3) = intensities;
+        Self { a, b, c, h1, h2, h3, color };
+    }
+
+    fn points(&self, projected: &Vec<Vec2>) -> (Point, Point, Point) {
+        (
+            Point { coord: projected[self.a].clone(), h: self.h1 },
+            Point { coord: projected[self.b].clone(), h: self.h2 },
+            Point { coord: projected[self.c].clone(), h: self.h3 },
+        )
     }
 }
 
@@ -256,184 +274,31 @@ impl Renderer {
     fn render_scene(&mut self, camera: &Camera, instances: Vec<Instance>) {
         let camera_matrix = camera.get_matrix();
         for instance in instances {
-            let t = instance.transform();
-            let clipped_instance = self.transform_and_clip(&camera, instance, camera_matrix * t);
-
-            if let Some(instance) = clipped_instance {
-                self.render_model(&instance.model)
+            let transform = camera_matrix * instance.transform();
+            if let Some(clipped_instance) = self.transform_and_clip(&camera, instance, transform) {
+                self.render_model(&clipped_instance.model)
             }
         }
+
+        info!("{:?}", self.depth_buf)
     }
 
     fn render_model(&mut self, model: &Model) {
         let mut projected = vec![];
+
         for v in model.vertices.iter() {
-            projected.push(self.project_vertex(&v));
+            projected.push(self.project_vertex(v));
         }
 
         for t in model.triangles.iter() {
-            self.render_triangle(t, &projected, &model.vertices);
+            self.render_triangle(t, &model.vertices, &projected);
         }
     }
 
-    fn render_triangle(&mut self, triangle: &Triangle, projected: &Vec<Vec2>, vertices: &Vec<Vec3>) {
-        self.draw_filled_triangle(
-            triangle,
-            vertices,
-            projected,
-        );
-
-        // self.draw_wireframe_triangle(
-        //     &projected[triangle.a],
-        //     &projected[triangle.b],
-        //     &projected[triangle.c],
-        //     triangle.color.clone(),
-        // );
-    }
-}
-
-impl Renderer {
-    fn transform_and_clip(&self, camera: &Camera, mut instance: Instance, transform: Mat4x4) -> Option<Instance> {
-        let bc = &instance.model.bounds_center;
-        let center = transform * vec4(bc.x, bc.y, bc.z, 1.0);
-        let radius = instance.model.bounds_radius * instance.scale;
-
-        for plane in camera.planes.iter() {
-            let distance = self.signed_distance(plane, &center.xyz());
-            if distance < -radius {
-                return None;
-            }
-        }
-
-        /*
-         * transform
-         */
-        let mut vertices: Vec<Vec3> = vec![];
-        for v in instance.model.vertices.iter() {
-            let h = Vec4::new(v.x, v.y, v.z, 1.0);
-            vertices.push((transform * h).xyz())
-        }
-
-        let mut triangles = vec![];
-        for plane in camera.planes.iter() {
-            let mut new_triangles = vec![];
-            for triangle in instance.model.triangles.iter() {
-                let clipped_triangles = self.clip_triangle(triangle, &vertices, plane);
-                new_triangles.extend(clipped_triangles)
-            }
-            triangles.extend(new_triangles)
-        }
-
-        Some(Instance {
-            model: Model {
-                vertices,
-                triangles,
-                bounds_center: center.xyz(),
-                bounds_radius: radius,
-            },
-            scale: 1.0,
-            rotation: 0.0,
-            position: Default::default(),
-        })
-    }
-
-    fn clip_triangle(&self, triangle: &Triangle, vertices: &Vec<Vec3>, plane: &Plane) -> Vec<Triangle> {
-        let a = &vertices[triangle.a];
-        let b = &vertices[triangle.b];
-        let c = &vertices[triangle.c];
-
-        let d0 = self.signed_distance(plane, a);
-        let d1 = self.signed_distance(plane, b);
-        let d2 = self.signed_distance(plane, c);
-
-        let in_count = [d0, d1, d2].iter().filter(|&&x| x > 0.0).count();
-
-        if in_count == 3 {
-            vec![(*triangle).clone()]
-        } else if in_count == 0 {
-            vec![]
-        } else if in_count == 1 {
-            vec![]
-        } else {
-            vec![]
-        }
-    }
-
-    fn signed_distance(&self, plane: &Plane, vertex: &Vec3) -> f32 {
-        vertex.dot(&plane.normal) + plane.distance
-    }
-
-    fn viewport_to_canvas(&self, x: f32, y: f32) -> Vec2 {
-        Vec2::new(
-            x * self.canvas_size.w as f32 / self.viewport_size.w as f32,
-            y * self.canvas_size.h as f32 / self.viewport_size.h as f32,
-        )
-    }
-
-    fn project_vertex(&self, v: &Vec3) -> Vec2 {
-        self.viewport_to_canvas(v.x * 1.0 / v.z, v.y * 1.0 / v.z)
-    }
-
-    fn swap(&mut self, p0: &mut Vec2, p1: &mut Vec2) {
-        let x = p0.x;
-        let y = p0.y;
-        p0.x = p1.x;
-        p0.y = p1.y;
-        p1.x = x;
-        p1.y = y;
-    }
-
-    fn sort_vertex_indexes(&self, triangle: &Triangle, projected: &Vec<Vec2>) -> (usize, usize, usize) {
-        let mut indexes = (triangle.a, triangle.b, triangle.c);
-
-        if projected[indexes.1].y < projected[indexes.0].y {
-            let swap = indexes.0;
-            indexes.0 = indexes.1;
-            indexes.1 = swap;
-        }
-
-        if projected[indexes.2].y < projected[indexes.0].y {
-            let swap = indexes.0;
-            indexes.0 = indexes.2;
-            indexes.2 = swap;
-        }
-
-        if projected[indexes.2].y < projected[indexes.1].y {
-            let swap = indexes.1;
-            indexes.1 = indexes.2;
-            indexes.2 = swap;
-        }
-
-        indexes
-    }
-
-    fn edge_interpolate(&self, y0: f32, v0: f32, y1: f32, v1: f32, y2: f32, v2: f32) -> (Vec<f32>, Vec<f32>) {
-        let mut x01 = self.interpolate(y0, v0, y1, v1);
-        let x12 = self.interpolate(y1, v1, y2, v2);
-        let x02 = self.interpolate(y0, v0, y2, v2);
-
-        x01.remove(x01.len() - 1);
-
-        let x012 = [x01, x12].concat();
-
-        (x02, x012)
-    }
-
-    fn interpolate(&self, i0: f32, d0: f32, i1: f32, d1: f32) -> Vec<f32> {
-        let mut values: Vec<f32> = vec![];
-
-        if i0 == i1 {
-            values.push(d0)
-        } else {
-            let a = (d1 - d0) / (i1 - i0);
-            let mut d = d0;
-            for _ in i0 as i32..=i1 as i32 {
-                values.push(d);
-                d = d + a;
-            }
-        }
-
-        values
+    fn render_triangle(&mut self, triangle: &Triangle, vertices: &Vec<Vec3>, projected: &Vec<Vec2>) {
+        // self.draw_shaded_triangle(triangle, projected);
+        self.draw_filled_triangle(triangle, vertices, projected);
+        // self.draw_wireframe_triangle(triangle, projected);
     }
 }
 
@@ -467,10 +332,13 @@ impl Renderer {
         }
     }
 
-    fn draw_wireframe_triangle(&mut self, p0: &Vec2, p1: &Vec2, p2: &Vec2, color: Rgb<f32>) {
-        self.draw_line(p0.clone(), p1.clone(), color);
-        self.draw_line(p1.clone(), p2.clone(), color);
-        self.draw_line(p2.clone(), p0.clone(), color);
+    fn draw_wireframe_triangle(&mut self, triangle: &Triangle, projected: &Vec<Vec2>) {
+        let (p0, p1, p2) = triangle.points(projected);
+        let color = triangle.color.clone();
+
+        self.draw_line(p0.coord.clone(), p1.coord.clone(), color);
+        self.draw_line(p1.coord.clone(), p2.coord.clone(), color);
+        self.draw_line(p2.coord.clone(), p0.coord.clone(), color);
     }
 
     fn draw_filled_triangle(&mut self, triangle: &Triangle, vertices: &Vec<Vec3>, projected: &Vec<Vec2>) {
@@ -481,62 +349,45 @@ impl Renderer {
         let v2 = vertices[i2];
 
 
-        // mut p0: Vec2, mut p1: Vec2, mut p2: Vec2
-        let mut p0 = projected[triangle.a].clone();
-        let mut p1 = projected[triangle.b].clone();
-        let mut p2 = projected[triangle.c].clone();
+        let mut p0 = projected[i0].clone();
+        let mut p1 = projected[i1].clone();
+        let mut p2 = projected[i2].clone();
         let color = triangle.color.clone();
 
-        if p1.y < p0.y {
-            self.swap(&mut p1, &mut p0)
-        }
-
-        if p2.y < p0.y {
-            self.swap(&mut p2, &mut p0)
-        }
-
-        if p2.y < p1.y {
-            self.swap(&mut p2, &mut p1)
-        }
-
         let (x02, x012) = self.edge_interpolate(p0.y, p0.x, p1.y, p1.x, p2.y, p2.x);
-        let (iz02, iz0123) = self.edge_interpolate(p0.y, 1.0 / v0.z, p1.y, 1.0 / v1.z, p2.y, 1.0 / v2.z);
+        let (z02, z012) = self.edge_interpolate(p0.y, 1.0 / v0.z, p1.y, 1.0 / v1.z, p2.y, 1.0 / v2.z);
 
-        let x_left;
-        let x_right;
-        let z_left;
-        let z_right;
-        let m = x012.len() / 2;
-        if x02[m] < x012[m] {
-            x_left = x02;
-            x_right = x012;
-            z_left = iz02;
-            z_right = iz0123;
+        let m = x02.len() / 2;
+        let (
+            (x_left, x_right),
+            (z_left, z_right)
+        ) = if x02[m] < x012[m] {
+            ((x02, x012), (z02, z012))
         } else {
-            x_left = x012;
-            x_right = x02;
-            z_left = iz0123;
-            z_right = iz02;
-        }
-
+            ((x012, x02), (z012, z02))
+        };
 
         let y0 = p0.y as i32;
         let y2 = p2.y as i32;
 
         for y in y0..=y2 {
-            let (xl, xr) = (x_left[(y - y0) as usize] as i32, x_right[(y - y0) as usize] as i32);
-            let (zl, zr) = (z_left[(y - p0.y as i32) as usize], z_right[(y - p0.y as i32) as usize]);
-            let zscan = self.interpolate(xl as f32, zl, xr as f32, zr);
+            let (xl, xr) = (x_left[(y - y0) as usize], x_right[(y - y0) as usize]);
+            let (zl, zr) = (z_left[(y - y0) as usize], z_right[(y - y0) as usize]);
+            let zscan = self.interpolate(xl, zl, xr, zr);
 
-            for x in xl..=xr {
-                if self.update_depth_buf_if_closer(x, y, zscan[(x - xl) as usize] as i32) {
+            for x in xl as i32..=xr as i32 {
+                let z = zscan[(x - xl as i32) as usize];
+                if self.update_depth_buf_if_closer(x, y,  z) {
                     self.put_pixels(x, y, color);
                 }
             }
         }
     }
 
-    fn draw_shaded_triangle(&mut self, mut p0: Point, mut p1: Point, mut p2: Point, color: Rgb<f32>) {
+    fn draw_shaded_triangle(&mut self, triangle: &Triangle, projected: &Vec<Vec2>) {
+        let (mut p0, mut p1, mut p2) = triangle.points(projected);
+        let color = triangle.color.clone();
+
         if p1.coord.y < p0.coord.y {
             self.swap(&mut p1.coord, &mut p0.coord)
         }
@@ -599,21 +450,176 @@ impl Renderer {
 }
 
 impl Renderer {
-    fn update_depth_buf_if_closer(&mut self, x: i32, y: i32, z: i32) -> bool {
+    fn transform_and_clip(&self, camera: &Camera, mut instance: Instance, transform: Mat4x4) -> Option<Instance> {
+        let bc = &instance.model.bounds_center;
+        let center = transform * vec4(bc.x, bc.y, bc.z, 1.0);
+        let radius = instance.model.bounds_radius * instance.scale;
+
+        for plane in camera.planes.iter() {
+            let distance = self.signed_distance(plane, &center.xyz());
+            if distance < -radius {
+                return None;
+            }
+        }
+
+        /*
+         * transform
+         */
+        let mut vertices: Vec<Vec3> = vec![];
+        for v in instance.model.vertices.iter() {
+            let h = Vec4::new(v.x, v.y, v.z, 1.0);
+            vertices.push((transform * h).xyz())
+        }
+
+        let mut triangles = vec![];
+        for plane in camera.planes.iter() {
+            let mut new_triangles = vec![];
+            for triangle in instance.model.triangles.iter() {
+                let clipped_triangles = self.clip_triangle(triangle, &vertices, plane);
+                new_triangles.extend(clipped_triangles)
+            }
+            triangles = new_triangles
+        }
+
+        Some(Instance {
+            model: Model {
+                vertices,
+                triangles,
+                bounds_center: center.xyz(),
+                bounds_radius: radius,
+            },
+            scale: 1.0,
+            rotation: 0.0,
+            position: Default::default(),
+        })
+    }
+
+    fn clip_triangle(&self, triangle: &Triangle, vertices: &Vec<Vec3>, plane: &Plane) -> Vec<Triangle> {
+        let a = &vertices[triangle.a];
+        let b = &vertices[triangle.b];
+        let c = &vertices[triangle.c];
+
+        let d0 = self.signed_distance(plane, a);
+        let d1 = self.signed_distance(plane, b);
+        let d2 = self.signed_distance(plane, c);
+
+        let in_count = [d0, d1, d2].iter().filter(|&&x| x > 0.0).count();
+
+        if in_count == 3 {
+            vec![(*triangle).clone()]
+        } else if in_count == 0 {
+            vec![]
+        } else if in_count == 1 {
+            vec![]
+        } else {
+            vec![]
+        }
+    }
+
+    fn signed_distance(&self, plane: &Plane, center: &Vec3) -> f32 {
+        plane.normal.dot(center) + plane.distance
+    }
+
+    fn viewport_to_canvas(&self, x: f32, y: f32) -> Vec2 {
+        Vec2::new(
+            x * self.canvas_size.w as f32 / self.viewport_size.w as f32,
+            y * self.canvas_size.h as f32 / self.viewport_size.h as f32,
+        )
+    }
+
+    fn project_vertex(&self, v: &Vec3) -> Vec2 {
+        self.viewport_to_canvas(v.x * 1.0 / v.z, v.y * 1.0 / v.z)
+    }
+
+    fn swap(&mut self, p0: &mut Vec2, p1: &mut Vec2) {
+        let x = p0.x;
+        let y = p0.y;
+        p0.x = p1.x;
+        p0.y = p1.y;
+        p1.x = x;
+        p1.y = y;
+    }
+
+    fn sort_vertex_indexes(&self, triangle: &Triangle, projected: &Vec<Vec2>) -> (usize, usize, usize) {
+        let mut indexes = (triangle.a, triangle.b, triangle.c);
+
+        if projected[indexes.1].y < projected[indexes.0].y {
+            let swap = indexes.0;
+            indexes.0 = indexes.1;
+            indexes.1 = swap;
+        }
+
+        if projected[indexes.2].y < projected[indexes.0].y {
+            let swap = indexes.0;
+            indexes.0 = indexes.2;
+            indexes.2 = swap;
+        }
+
+        if projected[indexes.2].y < projected[indexes.1].y {
+            let swap = indexes.1;
+            indexes.1 = indexes.2;
+            indexes.2 = swap;
+        }
+
+        indexes
+    }
+
+    fn edge_interpolate(
+        &self,
+        y0: f32, v0: f32,
+        y1: f32, v1: f32,
+        y2: f32, v2: f32,
+    ) -> (Vec<f32>, Vec<f32>) {
+        let mut x01 = self.interpolate(y0, v0, y1, v1);
+        let x12 = self.interpolate(y1, v1, y2, v2);
+        let x02 = self.interpolate(y0, v0, y2, v2);
+
+        x01.remove(x01.len() - 1);
+
+        let x012 = [x01, x12].concat();
+
+        (x02, x012)
+    }
+
+    fn interpolate(
+        &self,
+        i0: f32, d0: f32,
+        i1: f32, d1: f32,
+    ) -> Vec<f32> {
+        let mut values: Vec<f32> = vec![];
+
+        if i0 == i1 {
+            values.push(d0)
+        } else {
+            let a = (d1 - d0) / (i1 - i0);
+            let mut d = d0;
+            for _ in i0 as i32..=i1 as i32 {
+                values.push(d);
+                d = d + a;
+            }
+        }
+
+        values
+    }
+}
+
+impl Renderer {
+    fn update_depth_buf_if_closer(&mut self, cx: i32, cy: i32, z: f32) -> bool {
         let w = self.canvas_size.w as f32;
         let h = self.canvas_size.h as f32;
 
-        let x = (w / 2.0 + x as f32).ceil();
-        let y = (h / 2.0 - y as f32 - 1.0).ceil();
+
+        let x = (w / 2.0 + cx as f32).ceil();
+        let y = (h / 2.0 - cy as f32 - 1.0).ceil();
 
         if x < 0.0 || x >= w || y < 0.0 || y >= h {
             return false;
         }
 
         let offset = (x + w * y) as usize;
-        if self.depth_buf[offset] != 0.0 || self.depth_buf[offset] < z as f32 {
-            self.depth_buf[offset] = z as f32;
-            return true
+        if self.depth_buf[offset] == 0.0 || self.depth_buf[offset] < z {
+            self.depth_buf[offset] = z;
+            return true;
         }
 
         false
@@ -633,7 +639,7 @@ impl Renderer {
 
         // info!("c[{:}:{:}] / s[{:}:{:}]", cx, cy, x, y);
 
-        let offset: usize = (4.0 * (x + w * y)) as usize;
+        let offset = (4.0 * (x + w * y)) as usize;
         self.data[offset + 0] = color.r as u8;
         self.data[offset + 1] = color.g as u8;
         self.data[offset + 2] = color.b as u8;

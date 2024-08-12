@@ -1,5 +1,5 @@
 use log::info;
-use nalgebra_glm::{identity, Mat4x4, rotate_y, scaling, translation, Vec2, Vec3, vec3, Vec4, vec4};
+use nalgebra_glm::{identity, Mat4x4, rotate_y, scaling, translation, Vec2, Vec3, vec3, Vec4, vec4, triangle_normal};
 use rgb::Rgb;
 use wasm_bindgen::{Clamped, JsCast};
 use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, ImageData, Performance, window};
@@ -337,8 +337,8 @@ impl Renderer {
         let color = triangle.color.clone();
 
         self.draw_line(p0.coord.clone(), p1.coord.clone(), color);
-        self.draw_line(p1.coord.clone(), p2.coord.clone(), color);
-        self.draw_line(p2.coord.clone(), p0.coord.clone(), color);
+        self.draw_line(p0.coord.clone(), p2.coord.clone(), color);
+        self.draw_line(p2.coord.clone(), p1.coord.clone(), color);
     }
 
     fn draw_filled_triangle(&mut self, triangle: &Triangle, vertices: &Vec<Vec3>, projected: &Vec<Vec2>) {
@@ -348,6 +348,11 @@ impl Renderer {
         let v1 = vertices[i1];
         let v2 = vertices[i2];
 
+        let normal = triangle_normal(&vertices[triangle.a], &vertices[triangle.b], &vertices[triangle.c]);
+        let vertex_to_camera = -v0;
+        if vertex_to_camera.dot(&normal) <= 0.0 {
+            return;
+        }
 
         let mut p0 = projected[i0].clone();
         let mut p1 = projected[i1].clone();
@@ -377,7 +382,7 @@ impl Renderer {
 
             for x in xl as i32..=xr as i32 {
                 let z = zscan[(x - xl as i32) as usize];
-                if self.update_depth_buf_if_closer(x, y,  z) {
+                if self.update_depth_buf_if_closer(x, y, z) {
                     self.put_pixels(x, y, color);
                 }
             }

@@ -2,9 +2,9 @@ use log::info;
 use nalgebra_glm::{length, normalize, Vec3};
 use rgb::Rgb;
 use wasm_bindgen::{Clamped, JsCast};
-use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, ImageData, Performance, window};
-use yew::{Component, Context, Html, html, NodeRef};
-
+use web_sys::{window, CanvasRenderingContext2d, HtmlCanvasElement, ImageData, Performance};
+use yew::{html, Component, Context, Html, NodeRef};
+use crate::components::graphics::Light;
 
 pub struct RaytracingCanvas {
     canvas_ref: NodeRef,
@@ -22,22 +22,6 @@ struct Range {
 impl Range {
     pub fn isin(&self, t: f32) -> bool {
         self.min < t && t < self.max
-    }
-}
-
-enum Light {
-    Ambient { intensity: f32 },
-    Point { intensity: f32, position: Vec3 },
-    Directional { intensity: f32, direction: Vec3 },
-}
-
-impl Light {
-    pub fn intensity(&self) -> f32 {
-        match self {
-            Light::Ambient { intensity } => *intensity,
-            Light::Point { intensity, .. } => *intensity,
-            Light::Directional { intensity, .. } => *intensity,
-        }
     }
 }
 

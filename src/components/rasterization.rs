@@ -1,11 +1,14 @@
-use std::f32::consts::PI;
-use log::info;
-use nalgebra_glm::{identity, Mat4x4, rotate_y, scaling, translation, Vec2, Vec3, vec3, Vec4, vec4, triangle_normal, rotation, length};
-use rgb::Rgb;
-use wasm_bindgen::{Clamped, JsCast};
-use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, ImageData, Performance, window};
-use yew::{Component, Context, Html, html, NodeRef};
 use crate::components::graphics::Light;
+use nalgebra_glm::{identity, length, rotate_y, scaling, translation, triangle_normal, vec2, vec3, vec4, Mat4x4, Vec2, Vec3, Vec4};
+use rgb::Rgb;
+use std::cell::RefCell;
+use std::f32::consts::PI;
+use std::rc::Rc;
+use log::info;
+use wasm_bindgen::prelude::{wasm_bindgen, Closure};
+use wasm_bindgen::{Clamped, JsCast};
+use web_sys::{window, CanvasRenderingContext2d, HtmlCanvasElement, HtmlImageElement, ImageData, Performance};
+use yew::{html, Component, Context, Html, NodeRef};
 
 pub struct RasterizationCanvas {
     canvas_ref: NodeRef,
@@ -34,17 +37,28 @@ impl Component for RasterizationCanvas {
                 let rasterizer = Rasterizer {
                     canvas,
                     performance: window().unwrap().performance().unwrap(),
+                    texture: Texture::new("crate-texture.jpg"),
                 };
 
-                rasterizer.render();
+                let a = Closure::<dyn Fn()>::new(move || {
+                    rasterizer.render()
+                });
+
+                window()
+                    .unwrap()
+                    .set_timeout_with_callback_and_timeout_and_arguments_0(a.as_ref().unchecked_ref(), 1000)
+                    .expect("TODO: panic message");
+                a.forget();
             })
         }
     }
 }
 
+#[wasm_bindgen]
 struct Rasterizer {
     canvas: HtmlCanvasElement,
     performance: Performance,
+    texture: Texture,
 }
 
 impl Rasterizer {
@@ -100,24 +114,7 @@ impl Rasterizer {
         renderer.draw_line(Vec2::new(-150.0, 150.0), Vec2::new(150.0, -150.0), color);
         renderer.draw_line(Vec2::new(-150.0, 0.0), Vec2::new(150.0, -0.0), color);
         renderer.draw_line(Vec2::new(0.0, 150.0), Vec2::new(0.0, -150.0), color);
-        // drawer.draw_filled_triangle(Vec2::new(-120.0, -70.0), Vec2::new(0.0, 85.0), Vec2::new(120.0, -20.0), color);
-        // drawer.draw_shaded_triangle(
-        //     Point { coord: Vec2::new(-120.0, 70.0), h: 1.0 },
-        //     Point { coord: Vec2::new(0.0, 85.0), h: 0.3 },
-        //     Point { coord: Vec2::new(120.0, -20.0), h: 0.5 },
-        //     Rgb::new(0.0, 255.0, 0.0),
-        // );
-        // drawer.draw_cube(&Cube {
-        //     af: Vec3::new(-2.0, -0.5, 5.0),
-        //     bf: Vec3::new(-2.0, 0.5, 5.0),
-        //     cf: Vec3::new(-1.0, 0.5, 5.0),
-        //     df: Vec3::new(-1.0, -0.5, 5.0),
-        //
-        //     ab: Vec3::new(-2.0, -0.5, 6.0),
-        //     bb: Vec3::new(-2.0, 0.5, 6.0),
-        //     cb: Vec3::new(-1.0, 0.5, 6.0),
-        //     db: Vec3::new(-1.0, -0.5, 6.0),
-        // });
+
 
         let red: Rgb<f32> = Rgb::new(255.0, 0.0, 0.0);
         let green: Rgb<f32> = Rgb::new(0.0, 255.0, 0.0);
@@ -127,6 +124,7 @@ impl Rasterizer {
         let cyan: Rgb<f32> = Rgb::new(0.0, 255.0, 255.0);
 
         let cube = Model {
+            texture: Some(self.texture.clone()),
             vertices: vec![
                 Vec3::new(1.0, 1.0, 1.0),
                 Vec3::new(-1.0, 1.0, 1.0),
@@ -138,18 +136,18 @@ impl Rasterizer {
                 Vec3::new(1.0, -1.0, -1.0),
             ],
             triangles: vec![
-                Triangle::new([0, 1, 2], red.clone(), [vec3(0.0, 0.0, 1.0), vec3(0.0, 0.0, 1.0), vec3(0.0, 0.0, 1.0)]),
-                Triangle::new([0, 2, 3], red.clone(), [vec3(0.0, 0.0, 1.0), vec3(0.0, 0.0, 1.0), vec3(0.0, 0.0, 1.0)]),
-                Triangle::new([4, 0, 3], green.clone(), [vec3(1.0, 0.0, 0.0), vec3(1.0, 0.0, 0.0), vec3(1.0, 0.0, 0.0)]),
-                Triangle::new([4, 3, 7], green.clone(), [vec3(1.0, 0.0, 0.0), vec3(1.0, 0.0, 0.0), vec3(1.0, 0.0, 0.0)]),
-                Triangle::new([5, 4, 7], blue.clone(), [vec3(0.0, 0.0, -1.0), vec3(0.0, 0.0, -1.0), vec3(0.0, 0.0, -1.0)]),
-                Triangle::new([5, 7, 6], blue.clone(), [vec3(0.0, 0.0, -1.0), vec3(0.0, 0.0, -1.0), vec3(0.0, 0.0, -1.0)]),
-                Triangle::new([1, 5, 6], yellow.clone(), [vec3(-1.0, 0.0, 0.0), vec3(-1.0, 0.0, 0.0), vec3(-1.0, 0.0, 0.0)]),
-                Triangle::new([1, 6, 2], yellow.clone(), [vec3(-1.0, 0.0, 0.0), vec3(-1.0, 0.0, 0.0), vec3(-1.0, 0.0, 0.0)]),
-                Triangle::new([1, 0, 5], purple.clone(), [vec3(0.0, 1.0, 0.0), vec3(0.0, 1.0, 0.0), vec3(0.0, 1.0, 0.0)]),
-                Triangle::new([5, 0, 4], purple.clone(), [vec3(0.0, 1.0, 0.0), vec3(0.0, 1.0, 0.0), vec3(0.0, 1.0, 0.0)]),
-                Triangle::new([2, 6, 7], cyan.clone(), [vec3(0.0, -1.0, 0.0), vec3(0.0, -1.0, 0.0), vec3(0.0, -1.0, 0.0)]),
-                Triangle::new([2, 7, 3], cyan.clone(), [vec3(0.0, -1.0, 0.0), vec3(0.0, -1.0, 0.0), vec3(0.0, -1.0, 0.0)]),
+                Triangle::new([0, 1, 2], red.clone(), [vec3(0.0, 0.0, 1.0), vec3(0.0, 0.0, 1.0), vec3(0.0, 0.0, 1.0)], [vec2(0.0, 0.0), vec2(1.0, 0.0), vec2(1.0, 1.0)]),
+                Triangle::new([0, 2, 3], red.clone(), [vec3(0.0, 0.0, 1.0), vec3(0.0, 0.0, 1.0), vec3(0.0, 0.0, 1.0)], [vec2(0.0, 0.0), vec2(1.0, 1.0), vec2(0.0, 1.0)]),
+                Triangle::new([4, 0, 3], green.clone(), [vec3(1.0, 0.0, 0.0), vec3(1.0, 0.0, 0.0), vec3(1.0, 0.0, 0.0)], [vec2(0.0, 0.0), vec2(1.0, 0.0), vec2(1.0, 1.0)]),
+                Triangle::new([4, 3, 7], green.clone(), [vec3(1.0, 0.0, 0.0), vec3(1.0, 0.0, 0.0), vec3(1.0, 0.0, 0.0)], [vec2(0.0, 0.0), vec2(1.0, 1.0), vec2(0.0, 1.0)]),
+                Triangle::new([5, 4, 7], blue.clone(), [vec3(0.0, 0.0, -1.0), vec3(0.0, 0.0, -1.0), vec3(0.0, 0.0, -1.0)], [vec2(0.0, 0.0), vec2(1.0, 0.0), vec2(1.0, 1.0)]),
+                Triangle::new([5, 7, 6], blue.clone(), [vec3(0.0, 0.0, -1.0), vec3(0.0, 0.0, -1.0), vec3(0.0, 0.0, -1.0)], [vec2(0.0, 0.0), vec2(1.0, 1.0), vec2(0.0, 1.0)]),
+                Triangle::new([1, 5, 6], yellow.clone(), [vec3(-1.0, 0.0, 0.0), vec3(-1.0, 0.0, 0.0), vec3(-1.0, 0.0, 0.0)], [vec2(0.0, 0.0), vec2(1.0, 0.0), vec2(1.0, 1.0)]),
+                Triangle::new([1, 6, 2], yellow.clone(), [vec3(-1.0, 0.0, 0.0), vec3(-1.0, 0.0, 0.0), vec3(-1.0, 0.0, 0.0)], [vec2(0.0, 0.0), vec2(1.0, 1.0), vec2(0.0, 1.0)]),
+                Triangle::new([1, 0, 5], purple.clone(), [vec3(0.0, 1.0, 0.0), vec3(0.0, 1.0, 0.0), vec3(0.0, 1.0, 0.0)], [vec2(0.0, 0.0), vec2(1.0, 0.0), vec2(1.0, 1.0)]),
+                Triangle::new([5, 0, 4], purple.clone(), [vec3(0.0, 1.0, 0.0), vec3(0.0, 1.0, 0.0), vec3(0.0, 1.0, 0.0)], [vec2(0.0, 1.0), vec2(1.0, 1.0), vec2(0.0, 0.0)]),
+                Triangle::new([2, 6, 7], cyan.clone(), [vec3(0.0, -1.0, 0.0), vec3(0.0, -1.0, 0.0), vec3(0.0, -1.0, 0.0)], [vec2(0.0, 0.0), vec2(1.0, 0.0), vec2(1.0, 1.0)]),
+                Triangle::new([2, 7, 3], cyan.clone(), [vec3(0.0, -1.0, 0.0), vec3(0.0, -1.0, 0.0), vec3(0.0, -1.0, 0.0)], [vec2(0.0, 0.0), vec2(1.0, 1.0), vec2(0.0, 1.0)]),
             ],
             bounds_center: Default::default(),
             bounds_radius: 3.0f32.sqrt(),
@@ -164,15 +162,14 @@ impl Rasterizer {
             Instance { model: sphere.clone(), position: vec3(1.75, -0.5, 7.0), rotation: 0.0, scale: 1.5 },
         ];
 
-
         renderer.render_scene(instances);
+
+        let data = ImageData::new_with_u8_clamped_array(Clamped(renderer.data.as_slice()), w).unwrap();
+        context.put_image_data(&data, 0.0, 0.0).expect("TODO: panic message");
+
 
         let end = self.performance.now();
         info!("execution: {:?}", end - start);
-
-        let data = ImageData::new_with_u8_clamped_array(Clamped(renderer.data.as_slice()), w).unwrap();
-
-        context.put_image_data(&data, 0.0, 0.0).expect("TODO: panic message");
     }
 }
 
@@ -206,15 +203,16 @@ struct Triangle {
     pub indexes: [usize; 3],
     pub intensities: [f32; 3],
     pub normals: [Vec3; 3],
+    pub uvs: [Vec2; 3],
 }
 
 impl Triangle {
-    fn new(indexes: [usize; 3], color: Rgb<f32>, normals: [Vec3; 3]) -> Self {
-        Self { indexes, color, intensities: [1.0; 3], normals }
+    fn new(indexes: [usize; 3], color: Rgb<f32>, normals: [Vec3; 3], uvs: [Vec2; 3]) -> Self {
+        Self { indexes, color, intensities: [1.0; 3], normals, uvs }
     }
 
-    fn new_with_intensity(indexes: [usize; 3], color: Rgb<f32>, intensities: [f32; 3], normals: [Vec3; 3]) {
-        Self { indexes, intensities, normals, color };
+    fn new_with_intensity(indexes: [usize; 3], color: Rgb<f32>, intensities: [f32; 3], normals: [Vec3; 3], uvs: [Vec2; 3]) {
+        Self { indexes, intensities, normals, color, uvs };
     }
 
     fn points(&self, projected: &Vec<Vec2>) -> (Point, Point, Point) {
@@ -257,6 +255,7 @@ struct Model {
     pub triangles: Vec<Triangle>,
     pub bounds_center: Vec3,
     pub bounds_radius: f32,
+    pub texture: Option<Texture>,
 }
 
 impl Model {
@@ -286,12 +285,14 @@ impl Model {
 
                 let tri0 = [i0, i1, i2];
                 let tri1 = [i0, i0 + divs as usize, i1];
-                triangles.push(Triangle::new(tri0, color.clone(), [vertices[tri0[0]], vertices[tri0[1]], vertices[tri0[2]]]));
-                triangles.push(Triangle::new(tri1, color.clone(), [vertices[tri1[0]], vertices[tri1[1]], vertices[tri1[2]]]));
+                let uvs = [vec2(0.0, 0.0), vec2(0.0, 0.0), vec2(0.0, 0.0)];
+                triangles.push(Triangle::new(tri0, color.clone(), [vertices[tri0[0]], vertices[tri0[1]], vertices[tri0[2]]], uvs.clone()));
+                triangles.push(Triangle::new(tri1, color.clone(), [vertices[tri1[0]], vertices[tri1[1]], vertices[tri1[2]]], uvs.clone()));
             }
         }
 
         Model {
+            texture: None,
             vertices,
             triangles,
             bounds_center: vec3(0.0, 0.0, 0.0),
@@ -321,6 +322,76 @@ impl Instance {
 
     fn get_orientation(&self) -> Mat4x4 {
         rotate_y(&identity(), self.rotation.to_radians()).transpose()
+    }
+}
+
+#[derive(Clone)]
+struct Texture {
+    texels: Rc<RefCell<Option<(Vec<u8>, f32, f32)>>>,
+}
+
+impl Texture {
+    pub fn new(src: &str) -> Self {
+        let image = HtmlImageElement::new().unwrap();
+        image.set_src(src);
+
+        let canvas = window().unwrap()
+            .document().unwrap()
+            .create_element("canvas").unwrap()
+            .dyn_into::<HtmlCanvasElement>().unwrap();
+
+        let texture = Self { texels: Rc::new(RefCell::new(None)) };
+        let texels = Rc::clone(&texture.texels);
+
+        let image_ref = image.clone();
+        let handler = Closure::<dyn FnMut()>::new(move || {
+            let (w, h) = (image_ref.width(), image_ref.height());
+
+            canvas.set_width(w);
+            canvas.set_height(h);
+            let context = canvas
+                .get_context("2d")
+                .unwrap()
+                .unwrap()
+                .dyn_into::<CanvasRenderingContext2d>()
+                .unwrap();
+
+            context.draw_image_with_html_image_element_and_dw_and_dh(&image_ref, 0.0, 0.0, w as f64, h as f64).expect("TODO: panic message");
+
+            let image_data = context.get_image_data(0.0, 0.0, w as f64, h as f64)
+                .unwrap()
+                .data()
+                .0;
+
+            texels.replace(Some((image_data, w as f32, h as f32)));
+        });
+        image.set_onload(Some(handler.as_ref().unchecked_ref()));
+
+        handler.forget();
+
+        texture
+    }
+
+    pub fn get_texel(&self, u: f32, v: f32) -> Rgb<f32> {
+        let texels = self.texels.borrow();
+        match texels.as_ref() {
+            None => {
+                Rgb::new(255.0, 255.0, 255.0)
+            }
+            Some((data, w, h)) => {
+                let iu = (u * w).floor() - 1.0;
+                let iv = (v * h).floor() - 1.0;
+
+                let offset = (4.0 * (iu + iv * w)) as usize;
+                // info!("{:.5}:{:.5} - {}:{} - {}", u, v, iu, iv, offset);
+
+                Rgb::new(
+                    data[offset + 0] as f32,
+                    data[offset + 1] as f32,
+                    data[offset + 2] as f32,
+                )
+            }
+        }
     }
 }
 
@@ -426,7 +497,6 @@ impl Renderer {
         let p0 = &projected[a];
         let p1 = &projected[b];
         let p2 = &projected[c];
-        let color = triangle.color.clone();
 
         let (x02, x012) = self.edge_interpolate(p0.y, p0.x, p1.y, p1.x, p2.y, p2.x);
         let (z02, z012) = self.edge_interpolate(p0.y, 1.0 / v0.z, p1.y, 1.0 / v1.z, p2.y, 1.0 / v2.z);
@@ -442,6 +512,10 @@ impl Renderer {
         let (ny02, ny012) = self.edge_interpolate(p0.y, n0.y, p1.y, n1.y, p2.y, n2.y);
         let (nz02, nz012) = self.edge_interpolate(p0.y, n0.z, p1.y, n1.z, p2.y, n2.z);
 
+        let uvs = triangle.uvs.clone();
+        let (uz02, uz012) = self.edge_interpolate(p0.y, uvs[i0].x / v0.z, p1.y, uvs[i1].x / v1.z, p2.y, uvs[i2].x / v2.z);
+        let (vz02, vz012) = self.edge_interpolate(p0.y, uvs[i0].y / v0.z, p1.y, uvs[i1].y / v1.z, p2.y, uvs[i2].y / v2.z);
+
         let m = x02.len() / 2;
         let (
             (x_left, x_right),
@@ -449,15 +523,19 @@ impl Renderer {
             (nx_left, nx_right),
             (ny_left, ny_right),
             (nz_left, nz_right),
+            (uz_left, uz_right),
+            (vz_left, vz_right),
         ) = if x02[m] < x012[m] {
             (
                 (x02, x012), (z02, z012),
-                (nx02, nx012), (ny02, ny012), (nz02, nz012)
+                (nx02, nx012), (ny02, ny012), (nz02, nz012),
+                (uz02, uz012), (vz02, vz012)
             )
         } else {
             (
                 (x012, x02), (z012, z02),
-                (nx012, nx02), (ny012, ny02), (nz012, nz02)
+                (nx012, nx02), (ny012, ny02), (nz012, nz02),
+                (uz012, uz02), (vz012, vz02)
             )
         };
 
@@ -479,13 +557,29 @@ impl Renderer {
             let nyscan = self.interpolate(xl, nyl, xr, nyr);
             let nzscan = self.interpolate(xl, nzl, xr, nzr);
 
+            let uzscan = self.interpolate(xl, uz_left[yi], xr, uz_right[yi]);
+            let vzscan = self.interpolate(xl, vz_left[yi], xr, vz_right[yi]);
+
+
             for x in xl as i32..=xr as i32 {
                 let xi = (x - xl as i32) as usize;
                 let z = zscan[xi];
                 if self.update_depth_buf_if_closer(x, y, z) {
-                    let v = self.un_project_vertex(x as f32, y as f32, z);
-                    let n = vec3(nxscan[xi], nyscan[xi], nzscan[xi]);
-                    let intensity = self.compute_illumination(&v, &n);
+                    let vertex = self.un_project_vertex(x as f32, y as f32, z);
+                    let normal = vec3(nxscan[xi], nyscan[xi], nzscan[xi]);
+                    let intensity = self.compute_illumination(&vertex, &normal);
+
+                    let color = if let Some(texture) = instance.model.texture.as_ref() {
+                        let u = uzscan[xi] / zscan[xi];
+                        let v = vzscan[xi] / zscan[xi];
+
+                        texture.get_texel(u, v)
+                    } else {
+                        triangle.color.clone()
+                    };
+
+                    // info!("{},{} - {:?}", x, y, color);
+
                     self.put_pixels(x, y, color * intensity);
                 }
             }
@@ -558,7 +652,7 @@ impl Renderer {
 }
 
 impl Renderer {
-    fn transform_and_clip(&self, mut instance: Instance, transform: Mat4x4) -> Option<Instance> {
+    fn transform_and_clip(&self, instance: Instance, transform: Mat4x4) -> Option<Instance> {
         let bc = &instance.model.bounds_center;
         let center = transform * vec4(bc.x, bc.y, bc.z, 1.0);
         let radius = instance.model.bounds_radius * instance.scale;
@@ -591,6 +685,7 @@ impl Renderer {
 
         Some(Instance {
             model: Model {
+                texture: instance.model.texture,
                 vertices,
                 triangles,
                 bounds_center: center.xyz(),

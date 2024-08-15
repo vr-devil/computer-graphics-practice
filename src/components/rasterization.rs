@@ -8,20 +8,41 @@ use log::info;
 use wasm_bindgen::prelude::{wasm_bindgen, Closure};
 use wasm_bindgen::{Clamped, JsCast};
 use web_sys::{window, CanvasRenderingContext2d, HtmlCanvasElement, HtmlImageElement, ImageData, Performance};
-use yew::{html, Component, Context, Html, NodeRef};
+use yew::{html, Callback, Component, Context, Html, NodeRef};
 
 pub struct RasterizationCanvas {
     canvas_ref: NodeRef,
 }
 
+pub enum RasterizationCanvasMessage {
+    TextureLoaded(Texture)
+}
+
 impl Component for RasterizationCanvas {
-    type Message = ();
+    type Message = RasterizationCanvasMessage;
     type Properties = ();
 
     fn create(_ctx: &Context<Self>) -> Self {
         Self {
             canvas_ref: NodeRef::default(),
         }
+    }
+
+    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
+        match msg {
+            RasterizationCanvasMessage::TextureLoaded(texture) => {
+                let canvas: HtmlCanvasElement = self.canvas_ref.cast().unwrap();
+                let rasterizer = Rasterizer {
+                    canvas,
+                    performance: window().unwrap().performance().unwrap(),
+                    texture,
+                };
+
+                rasterizer.render();
+            }
+        }
+
+        true
     }
 
     fn view(&self, _ctx: &Context<Self>) -> Html {
@@ -32,24 +53,8 @@ impl Component for RasterizationCanvas {
 
     fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
         if first_render {
-            let canvas: HtmlCanvasElement = self.canvas_ref.cast().unwrap();
-            ctx.link().send_future(async move {
-                let rasterizer = Rasterizer {
-                    canvas,
-                    performance: window().unwrap().performance().unwrap(),
-                    texture: Texture::new("crate-texture.jpg"),
-                };
-
-                let a = Closure::<dyn Fn()>::new(move || {
-                    rasterizer.render()
-                });
-
-                window()
-                    .unwrap()
-                    .set_timeout_with_callback_and_timeout_and_arguments_0(a.as_ref().unchecked_ref(), 1000)
-                    .expect("TODO: panic message");
-                a.forget();
-            })
+            let cb = ctx.link().callback(RasterizationCanvasMessage::TextureLoaded);
+            Texture::load("crate-texture.jpg", cb);
         }
     }
 }
@@ -327,11 +332,13 @@ impl Instance {
 
 #[derive(Clone)]
 struct Texture {
-    texels: Rc<RefCell<Option<(Vec<u8>, f32, f32)>>>,
+    image_data: Vec<u8>,
+    w: f32,
+    h: f32,
 }
 
 impl Texture {
-    pub fn new(src: &str) -> Self {
+    pub fn load(src: &str, cb: Callback<Texture>) {
         let image = HtmlImageElement::new().unwrap();
         image.set_src(src);
 
@@ -340,8 +347,6 @@ impl Texture {
             .create_element("canvas").unwrap()
             .dyn_into::<HtmlCanvasElement>().unwrap();
 
-        let texture = Self { texels: Rc::new(RefCell::new(None)) };
-        let texels = Rc::clone(&texture.texels);
 
         let image_ref = image.clone();
         let handler = Closure::<dyn FnMut()>::new(move || {
@@ -363,35 +368,29 @@ impl Texture {
                 .data()
                 .0;
 
-            texels.replace(Some((image_data, w as f32, h as f32)));
+            cb.emit(Texture { image_data, w: w as f32, h: h as f32 });
         });
         image.set_onload(Some(handler.as_ref().unchecked_ref()));
 
         handler.forget();
-
-        texture
     }
 
     pub fn get_texel(&self, u: f32, v: f32) -> Rgb<f32> {
-        let texels = self.texels.borrow();
-        match texels.as_ref() {
-            None => {
-                Rgb::new(255.0, 255.0, 255.0)
-            }
-            Some((data, w, h)) => {
-                let iu = (u * w).floor() - 1.0;
-                let iv = (v * h).floor() - 1.0;
+        let data = &self.image_data;
+        let w = self.w;
+        let h = self.h;
 
-                let offset = (4.0 * (iu + iv * w)) as usize;
-                // info!("{:.5}:{:.5} - {}:{} - {}", u, v, iu, iv, offset);
+        let iu = (u * w).floor() - 1.0;
+        let iv = (v * h).floor() - 1.0;
 
-                Rgb::new(
-                    data[offset + 0] as f32,
-                    data[offset + 1] as f32,
-                    data[offset + 2] as f32,
-                )
-            }
-        }
+        let offset = (4.0 * (iu + iv * w)) as usize;
+        // info!("{:.5}:{:.5} - {}:{} - {}", u, v, iu, iv, offset);
+
+        Rgb::new(
+            data[offset + 0] as f32,
+            data[offset + 1] as f32,
+            data[offset + 2] as f32,
+        )
     }
 }
 

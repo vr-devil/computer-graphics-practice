@@ -8,9 +8,9 @@ use winit::event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy};
 use winit::platform::web::{EventLoopExtWebSys, WindowAttributesExtWebSys};
 use winit::window::{Window, WindowId};
 use yew::prelude::*;
-use crate::components::rasterization::RasterizationCanvas;
-use crate::components::raytracing::RaytracingCanvas;
-use crate::components::section::Section;
+use crate::webapp::components::rasterization::RasterizationCanvas;
+use crate::webapp::components::raytracing::RaytracingCanvas;
+use crate::webapp::components::section::Section;
 
 // Skip formatting everything whose name is `html`
 // Or make it explicit that you only want to skip macro calls

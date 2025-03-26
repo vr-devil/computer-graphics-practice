@@ -1,10 +1,8 @@
-use crate::components::graphics::Light;
+use crate::webapp::components::graphics::Light;
+use log::info;
 use nalgebra_glm::{identity, length, rotate_y, scaling, translation, triangle_normal, vec2, vec3, vec4, Mat4x4, Vec2, Vec3, Vec4};
 use rgb::Rgb;
-use std::cell::RefCell;
 use std::f32::consts::PI;
-use std::rc::Rc;
-use log::info;
 use wasm_bindgen::prelude::{wasm_bindgen, Closure};
 use wasm_bindgen::{Clamped, JsCast};
 use web_sys::{window, CanvasRenderingContext2d, HtmlCanvasElement, HtmlImageElement, ImageData, Performance};
@@ -59,7 +57,6 @@ impl Component for RasterizationCanvas {
     }
 }
 
-#[wasm_bindgen]
 struct Rasterizer {
     canvas: HtmlCanvasElement,
     performance: Performance,

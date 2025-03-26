@@ -1,8 +1,8 @@
-use crate::app::App;
+use webapp::app::App;
 
-mod app;
 pub mod graphics;
-pub mod components;
+
+pub mod webapp;
 
 pub fn run() {
     wasm_logger::init(wasm_logger::Config::default());

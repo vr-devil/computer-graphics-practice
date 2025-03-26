@@ -4,7 +4,7 @@ use rgb::Rgb;
 use wasm_bindgen::{Clamped, JsCast};
 use web_sys::{window, CanvasRenderingContext2d, HtmlCanvasElement, ImageData, Performance};
 use yew::{html, Component, Context, Html, NodeRef};
-use crate::components::graphics::Light;
+use crate::webapp::components::graphics::Light;
 
 pub struct RaytracingCanvas {
     canvas_ref: NodeRef,

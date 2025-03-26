@@ -1,7 +1,7 @@
 use winit::window::Window;
 use yew::{AttrValue, Callback, classes, Component, Context, Html, html, NodeRef, Properties};
 use web_sys::HtmlCanvasElement;
-use crate::app::AppCallbackContext;
+use crate::webapp::app::AppCallbackContext;
 use crate::graphics::WGPUState;
 
 pub struct WGPUCanvas {

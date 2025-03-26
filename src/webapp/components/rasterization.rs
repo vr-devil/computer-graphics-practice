@@ -3,7 +3,7 @@ use log::info;
 use nalgebra_glm::{identity, length, rotate_y, scaling, translation, triangle_normal, vec2, vec3, vec4, Mat4x4, Vec2, Vec3, Vec4};
 use rgb::Rgb;
 use std::f32::consts::PI;
-use wasm_bindgen::prelude::{wasm_bindgen, Closure};
+use wasm_bindgen::prelude::Closure;
 use wasm_bindgen::{Clamped, JsCast};
 use web_sys::{window, CanvasRenderingContext2d, HtmlCanvasElement, HtmlImageElement, ImageData, Performance};
 use yew::{html, Callback, Component, Context, Html, NodeRef};
@@ -328,7 +328,7 @@ impl Instance {
 }
 
 #[derive(Clone)]
-struct Texture {
+pub struct Texture {
     image_data: Vec<u8>,
     w: f32,
     h: f32,

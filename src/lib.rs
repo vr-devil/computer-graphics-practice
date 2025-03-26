@@ -1,11 +1,9 @@
-use webapp::app::App;
 
 pub mod graphics;
 
+#[cfg(target_family = "wasm")]
 pub mod webapp;
+pub mod math;
 
-pub fn run() {
-    wasm_logger::init(wasm_logger::Config::default());
-    yew::Renderer::<App>::new().render();
-}
+
 

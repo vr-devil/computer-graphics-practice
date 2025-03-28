@@ -1,4 +1,4 @@
-use std::ops::{Add, Mul, Neg, Sub};
+use std::ops::{Add, Div, Mul, Neg, Sub};
 
 
 #[derive(PartialOrd, PartialEq)]
@@ -9,7 +9,28 @@ pub struct Vector3 {
     z: f32,
 }
 
+impl Div<f32> for &Vector3 {
+    type Output = Vector3;
+
+    fn div(self, rhs: f32) -> Self::Output {
+        Self::Output {
+            x: self.x / rhs,
+            y: self.y / rhs,
+            z: self.z / rhs,
+        }
+    }
+}
+
 impl Vector3 {
+
+    pub fn normalize(&self) -> Self {
+        self / self.norm()
+    }
+
+    pub fn norm(&self) -> f32 {
+        (self.x.powi(2) + self.y.powi(2) + self.z.powi(2)).sqrt()
+    }
+
     pub fn dot(&self, rhs: &Self) -> f32 {
         self.x * rhs.x + self.y * rhs.y + self.z * rhs.z
     }
@@ -146,3 +167,58 @@ mod test_vector3 {
 const X: Vector3 = Vector3 { x: 1., y: 0., z: 0. };
 const Y: Vector3 = Vector3 { x: 0., y: 1., z: 0. };
 const Z: Vector3 = Vector3 { x: 0., y: 0., z: 1. };
+
+struct Basis {
+    u: Vector3,
+    v: Vector3,
+    w: Vector3
+}
+
+impl Basis {
+    pub fn from_single_vector(a: &Vector3) -> Self {
+        let w = a.normalize();
+
+        let t = {
+            let (mut x, mut y, mut z) = (w.x.abs(), w.y.abs(), w.z.abs());
+            if x > y {
+                if y > z {
+                    z = 1.;
+                } else {
+                    y = 1.
+                }
+            } else {
+                if x > z {
+                    z = 1.
+                } else {
+                    x = 1.
+                }
+            }
+
+            Vector3{x, y, z}
+        };
+
+        let u = {
+            t.cross(&w).normalize()
+        };
+
+        let v = w.cross(&u);
+
+        Self { u, v, w }
+    }
+}
+
+mod test_basis {
+    use crate::math::{Basis, Vector3};
+
+    #[test]
+    fn test_from_single_vector() {
+
+        let basis = Basis::from_single_vector(&Vector3 { x: 2.5, y: 1.5, z: 0.5 });
+
+        let (u, v, w) = (basis.u, basis.v, basis.w);
+
+        assert_eq!(u.norm().round(), 1.);
+        assert_eq!(v.norm().round(), 1.);
+        assert_eq!(w.norm().round(), 1.);
+    }
+}

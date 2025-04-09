@@ -1,19 +1,4 @@
-[package]
-name = "computer-graphics-practice"
-version = "0.1.0"
-edition = "2021"
+[workspace]
+resolver = "2"
 
-[dependencies]
-winit = { version = "0.30.3", features = ["rwh_06"] }
-yew = { git = "https://github.com/yewstack/yew/", features = ["csr"] }
-wgpu = { version = "0.20.1", features = ["webgpu"] }
-log = "0.4"
-wasm-logger = "0.2.0"
-wasm-bindgen = "0.2.89"
-wasm-bindgen-futures = "0.4"
-web-sys = { version = "0.3", features = [
-    "HtmlCanvasElement", "HtmlImageElement",
-    "CanvasRenderingContext2d", "ImageData", "Performance"
-] }
-nalgebra-glm = "0.19.0"
-rgb = "0.8.90-alpha.1"
+members = ["computer_graphics_from_scratch", "fundamentals_of_computer_graphics"]

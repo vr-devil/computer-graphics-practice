@@ -1,4 +1,4 @@
 [workspace]
 resolver = "2"
 
-members = ["computer_graphics_from_scratch", "fundamentals_of_computer_graphics"]
+members = ["computer_graphics_from_scratch", "fundamentals_of_computer_graphics", "play_geometry"]

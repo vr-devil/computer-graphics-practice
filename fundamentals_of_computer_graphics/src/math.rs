@@ -207,8 +207,9 @@ impl Basis {
     }
 }
 
+#[cfg(test)]
 mod test_basis {
-    use crate::math::{Basis, Vector3};
+    use super::*;
 
     #[test]
     fn test_from_single_vector() {

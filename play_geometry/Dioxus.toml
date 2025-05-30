@@ -3,7 +3,7 @@
 [web.app]
 
 # HTML title tag content
-title = "play_geometry"
+title = "VR-DEVIL's Graphics"
 
 # include `assets` in web platform
 [web.resource]

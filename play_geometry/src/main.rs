@@ -1,5 +1,8 @@
+use dioxus::logger::tracing::info;
 use dioxus::prelude::*;
 use web_sys::{wasm_bindgen::JsCast, window, HtmlCanvasElement};
+use wgpu::SurfaceTarget;
+use play_geometry::WGPUInstance;
 
 #[derive(Debug, Clone, Routable, PartialEq)]
 #[rustfmt::skip]
@@ -14,7 +17,8 @@ const MAIN_CSS: Asset = asset!("/assets/main.css");
 const TAILWIND_CSS: Asset = asset!("/assets/tailwind.css");
 
 fn main() {
-    dioxus::launch(App);
+    wasm_logger::init(wasm_logger::Config::default());
+    launch(App);
 }
 
 #[component]
@@ -46,20 +50,29 @@ fn Home() -> Element {
 
 #[component]
 pub fn Line() -> Element {
-    let mut canvas = use_signal(|| None);
-    use_effect(move || canvas.set(find_canvas("line-canvas")));
+    // let mut canvas = use_signal(|| None);
+    use_effect(move || {
+        info!("wgpu_instance created.1");
+
+        // canvas.set(get_canvas("line-canvas"));
+        spawn(async {
+            let el = get_canvas("line-canvas").unwrap();
+            let wgpu_instance = WGPUInstance::new(SurfaceTarget::Canvas(el)).await;
+            info!("wgpu_instance created.2");
+        });
+
+    });
 
     rsx! {
         div {
-            canvas { id: "line-cavans" }
+            canvas { id: "line-canvas" }
         }
     }
 }
 
-fn find_canvas(id: &str) -> Option<HtmlCanvasElement> {
-    let document = window().unwrap().document().unwrap();
-    let elment = document.get_element_by_id(id).unwrap();
-    elment
-        .dyn_into::<HtmlCanvasElement>()
-        .map_or(None, |e| Some(e))
+fn get_canvas(id: &str) -> Option<HtmlCanvasElement> {
+    window().and_then(|win| win.document()).and_then(|doc| {
+        doc.get_element_by_id(id)
+            .and_then(|el| el.dyn_into::<HtmlCanvasElement>().ok())
+    })
 }

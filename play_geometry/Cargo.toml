@@ -15,6 +15,9 @@ web-sys = { version = "0.3.77", features = [
     "HtmlCanvasElement",
     "Window",
 ] }
+wgpu = { version = "25.0.2", features = ["webgpu"] }
+log = "0.4.27"
+wasm-logger = "0.2.0"
 
 [features]
 default = ["web"]

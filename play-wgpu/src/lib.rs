@@ -11,7 +11,7 @@ pub struct WGPUInstance<'window> {
 }
 
 impl<'window> WGPUInstance<'window> {
-    pub async fn new(target: impl Into<SurfaceTarget<'window>>) -> Self {
+    pub async fn new(target: SurfaceTarget<'window>) -> Self {
         let target: SurfaceTarget<'window> = target.into();
 
         let (width, height) = match &target {

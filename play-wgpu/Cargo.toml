@@ -1,5 +1,5 @@
 [package]
-name = "play-geometry"
+name = "play-wgpu"
 version = "0.1.0"
 authors = ["VR DEVIL <cnaicc@gmail.com>"]
 edition = "2021"

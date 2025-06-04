@@ -3,7 +3,7 @@ resolver = "3"
 members = [
     "computer-graphics-from-scratch",
     "fundamentals-of-computer-graphics",
-    "play-webgpu",
+    "play-wgpu",
 ]
 
 [workspace.dependencies]

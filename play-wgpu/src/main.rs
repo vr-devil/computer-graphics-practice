@@ -1,9 +1,8 @@
 use bytemuck::{Pod, Zeroable};
-use dioxus::html::completions::CompleteWithBraces::line;
 use dioxus::logger::tracing::info;
 use dioxus::prelude::*;
 use fundamentals_of_computer_graphics::math::Vector3;
-use play_geometry::WGPUInstance;
+use play_wgpu::WGPUInstance;
 use web_sys::{wasm_bindgen::JsCast, window, HtmlCanvasElement};
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::wgt::{CommandEncoderDescriptor, TextureViewDescriptor};
@@ -55,7 +54,7 @@ fn Navbar() -> Element {
 #[component]
 fn Home() -> Element {
     rsx! {
-        h1 { "VR-DEVIL's Graphics" }
+        h1 { class: "text-2xl", "VR-DEVIL's Graphics" }
         Line {}
     }
 }

@@ -1,8 +1,8 @@
+use bytemuck::{Pod, Zeroable};
 use std::ops::{Add, Div, Mul, Neg, Sub};
 
-
-#[derive(PartialOrd, PartialEq)]
-#[derive(Debug)]
+#[repr(C)]
+#[derive(PartialOrd, PartialEq, Debug, Pod, Zeroable, Copy, Clone)]
 pub struct Vector3 {
     x: f32,
     y: f32,
@@ -22,7 +22,6 @@ impl Div<f32> for &Vector3 {
 }
 
 impl Vector3 {
-
     pub fn normalize(&self) -> Self {
         self / self.norm()
     }
@@ -39,7 +38,7 @@ impl Vector3 {
         Self {
             x: self.y * rhs.z - self.z * rhs.y,
             y: self.z * rhs.x - self.x * rhs.z,
-            z: self.x * rhs.y - self.y * rhs.x
+            z: self.x * rhs.y - self.y * rhs.x,
         }
     }
 }
@@ -117,30 +116,107 @@ mod test_vector3 {
 
     #[test]
     fn test_add() {
-        let a = Vector3 { x: 1., y: 2., z: 3. };
-        let b = Vector3 { x: 1., y: 2., z: 3. };
+        let a = Vector3 {
+            x: 1.,
+            y: 2.,
+            z: 3.,
+        };
+        let b = Vector3 {
+            x: 1.,
+            y: 2.,
+            z: 3.,
+        };
 
-        assert_eq!(Vector3 { x: 2., y: 4., z: 6. }, &a + &b);
-        assert_eq!(Vector3 { x: 2., y: 4., z: 6. }, &b + &a);
-        assert_eq!(Vector3 { x: 2., y: 4., z: 6. }, &b + &a);
+        assert_eq!(
+            Vector3 {
+                x: 2.,
+                y: 4.,
+                z: 6.
+            },
+            &a + &b
+        );
+        assert_eq!(
+            Vector3 {
+                x: 2.,
+                y: 4.,
+                z: 6.
+            },
+            &b + &a
+        );
+        assert_eq!(
+            Vector3 {
+                x: 2.,
+                y: 4.,
+                z: 6.
+            },
+            &b + &a
+        );
     }
 
     #[test]
     fn test_sub() {
-        let a = Vector3 { x: 1., y: 2., z: 3. };
-        let b = Vector3 { x: 3., y: 2., z: 1. };
-        let b = Vector3 { x: 3., y: 2., z: 1. };
+        let a = Vector3 {
+            x: 1.,
+            y: 2.,
+            z: 3.,
+        };
+        let b = Vector3 {
+            x: 3.,
+            y: 2.,
+            z: 1.,
+        };
+        let b = Vector3 {
+            x: 3.,
+            y: 2.,
+            z: 1.,
+        };
 
-        assert_eq!(Vector3 { x: -2., y: 0., z: 2. }, &a - &b);
-        assert_eq!(Vector3 { x: -2., y: 0., z: 2. }, &a - &b);
-        assert_eq!(Vector3 { x: 2., y: 0., z: -2. }, &b - &a);
-        assert_eq!(Vector3 { x: 2., y: 0., z: -2. }, &b - &a);
+        assert_eq!(
+            Vector3 {
+                x: -2.,
+                y: 0.,
+                z: 2.
+            },
+            &a - &b
+        );
+        assert_eq!(
+            Vector3 {
+                x: -2.,
+                y: 0.,
+                z: 2.
+            },
+            &a - &b
+        );
+        assert_eq!(
+            Vector3 {
+                x: 2.,
+                y: 0.,
+                z: -2.
+            },
+            &b - &a
+        );
+        assert_eq!(
+            Vector3 {
+                x: 2.,
+                y: 0.,
+                z: -2.
+            },
+            &b - &a
+        );
     }
 
     #[test]
     fn test_dot() {
-        let a = Vector3 {x: 1., y: 2., z: 3.};
-        let b = Vector3 {x: 1., y: 2., z: 3.};
+        let a = Vector3 {
+            x: 1.,
+            y: 2.,
+            z: 3.,
+        };
+        let b = Vector3 {
+            x: 1.,
+            y: 2.,
+            z: 3.,
+        };
 
         assert_eq!(14., a.dot(&b));
         assert_eq!(14., b.dot(&a));
@@ -164,14 +240,26 @@ mod test_vector3 {
     }
 }
 
-const X: Vector3 = Vector3 { x: 1., y: 0., z: 0. };
-const Y: Vector3 = Vector3 { x: 0., y: 1., z: 0. };
-const Z: Vector3 = Vector3 { x: 0., y: 0., z: 1. };
+const X: Vector3 = Vector3 {
+    x: 1.,
+    y: 0.,
+    z: 0.,
+};
+const Y: Vector3 = Vector3 {
+    x: 0.,
+    y: 1.,
+    z: 0.,
+};
+const Z: Vector3 = Vector3 {
+    x: 0.,
+    y: 0.,
+    z: 1.,
+};
 
 struct Basis {
     u: Vector3,
     v: Vector3,
-    w: Vector3
+    w: Vector3,
 }
 
 impl Basis {
@@ -187,19 +275,13 @@ impl Basis {
                     y = 1.
                 }
             } else {
-                if x > z {
-                    z = 1.
-                } else {
-                    x = 1.
-                }
+                if x > z { z = 1. } else { x = 1. }
             }
 
-            Vector3{x, y, z}
+            Vector3 { x, y, z }
         };
 
-        let u = {
-            t.cross(&w).normalize()
-        };
+        let u = { t.cross(&w).normalize() };
 
         let v = w.cross(&u);
 
@@ -213,8 +295,11 @@ mod test_basis {
 
     #[test]
     fn test_from_single_vector() {
-
-        let basis = Basis::from_single_vector(&Vector3 { x: 2.5, y: 1.5, z: 0.5 });
+        let basis = Basis::from_single_vector(&Vector3 {
+            x: 2.5,
+            y: 1.5,
+            z: 0.5,
+        });
 
         let (u, v, w) = (basis.u, basis.v, basis.w);
 

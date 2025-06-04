@@ -72,10 +72,10 @@ pub fn Line() -> Element {
 
                 let line = LineSegment {
                     start: Vertex {
-                        position: Vector3::new(0.5, 0., 0.),
+                        position: Vector3::new(-0.5, 0., 0.),
                     },
                     end: Vertex {
-                        position: Vector3::new(0., 1.5, 0.),
+                        position: Vector3::new(0.5, 0., 0.),
                     },
                 };
                 let renderer = Renderer::new(&gpu, &line);

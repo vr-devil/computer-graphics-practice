@@ -9,6 +9,12 @@ pub struct Vector3 {
     z: f32,
 }
 
+impl Vector3 {
+    pub fn new(x: f32, y: f32, z: f32) -> Self {
+        Self {x, y, z}
+    }
+}
+
 impl Div<f32> for &Vector3 {
     type Output = Vector3;
 

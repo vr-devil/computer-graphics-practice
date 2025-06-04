@@ -1,16 +1,13 @@
 use log::info;
 use wgpu::wgt::DeviceDescriptor;
 use wgpu::SurfaceTarget::Canvas;
-use wgpu::{
-    Device, Instance, PowerPreference, Queue, RequestAdapterOptions, Surface,
-    SurfaceConfiguration, SurfaceTarget,
-};
+use wgpu::{Device, Instance, PowerPreference, Queue, RequestAdapterOptions, Surface, SurfaceConfiguration, SurfaceTarget};
 
 pub struct WGPUInstance<'window> {
     pub surface: Surface<'window>,
+    pub config: SurfaceConfiguration,
     pub device: Device,
     pub queue: Queue,
-    pub config: SurfaceConfiguration,
 }
 
 impl<'window> WGPUInstance<'window> {
@@ -19,7 +16,7 @@ impl<'window> WGPUInstance<'window> {
 
         let (width, height) = match &target {
             Canvas(canvas) => (canvas.width(), canvas.height()),
-            _ => (800, 800),
+            _ => (1, 1),
         };
 
         let instance = Instance::default();
@@ -32,7 +29,7 @@ impl<'window> WGPUInstance<'window> {
             .request_adapter(&RequestAdapterOptions {
                 power_preference: PowerPreference::default(),
                 force_fallback_adapter: false,
-                compatible_surface: Some(&surface),
+                compatible_surface: None,
             })
             .await
             .unwrap();
@@ -40,7 +37,7 @@ impl<'window> WGPUInstance<'window> {
 
         let (device, queue) = adapter
             .request_device(&DeviceDescriptor {
-                label: None,
+                label: Some("Device"),
                 required_features: Default::default(),
                 required_limits: Default::default(),
                 memory_hints: Default::default(),
@@ -54,11 +51,15 @@ impl<'window> WGPUInstance<'window> {
             .get_default_config(&adapter, width, height)
             .unwrap();
 
+        surface.configure(&device, &config);
+
         Self {
             surface,
+            config,
             device,
             queue,
-            config,
         }
     }
 }
+
+

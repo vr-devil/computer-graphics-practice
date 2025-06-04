@@ -1,5 +1,5 @@
 [package]
-name = "play_geometry"
+name = "play-geometry"
 version = "0.1.0"
 authors = ["VR DEVIL <cnaicc@gmail.com>"]
 edition = "2021"
@@ -15,11 +15,11 @@ web-sys = { version = "0.3.77", features = [
     "HtmlCanvasElement",
     "Window",
 ] }
-wgpu = { version = "25.0.2", features = ["webgpu"] }
+wgpu = { workspace = true, features = ["webgpu"] }
 log = "0.4.27"
 wasm-logger = "0.2.0"
-bytemuck = { version = "1.23.0", features = ["derive"] }
-fundamentals_of_computer_graphics = { version = "*", path = "../fundamentals_of_computer_graphics" }
+bytemuck = { workspace = true }
+fundamentals-of-computer-graphics = { version = "*", path = "../fundamentals-of-computer-graphics" }
 
 [features]
 default = ["web"]

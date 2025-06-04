@@ -1,11 +1,15 @@
 [workspace]
-resolver = "2"
-
+resolver = "3"
 members = [
-    "computer_graphics_from_scratch",
-    "fundamentals_of_computer_graphics",
-    "play_geometry",
+    "computer-graphics-from-scratch",
+    "fundamentals-of-computer-graphics",
+    "play-webgpu",
 ]
+
+[workspace.dependencies]
+wgpu = "25.0.2"
+bytemuck = { version = "1.23.0", features = ["derive"] }
+
 
 [profile]
 

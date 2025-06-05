@@ -54,39 +54,57 @@ fn Navbar() -> Element {
 #[component]
 fn Home() -> Element {
     rsx! {
-        h1 { class: "text-2xl", "VR-DEVIL's Graphics" }
-        Line {}
+        h1 { class: "text-4xl text-center py-4", "VR-DEVIL's Graphics" }
+        div {
+            class: "h-svh flex place-content-center place-items-center",
+            Lines {}
+        }
     }
 }
 
 #[component]
-pub fn Line() -> Element {
+pub fn Lines() -> Element {
     // let mut canvas = use_signal(|| None);
+
+    let lines = vec![
+        (Vector3::new(-0.5, 0., 0.), Vector3::new(0.5, 0., 0.)),
+        (Vector3::new(0., -0.5, 0.), Vector3::new(0., 0.5, 0.)),
+        (Vector3::new(-0.5, 0.5, 0.), Vector3::new(0.5, -0.5, 0.)),
+        (Vector3::new(0.5, 0.5, 0.), Vector3::new(-0.5, -0.5, 0.)),
+    ];
+
+    let lines2 = lines.clone();
     use_effect(move || {
         // canvas.set(get_canvas("line-canvas"));
-        if let Some(el) = get_canvas("line-canvas") {
-            spawn(async {
-                let gpu = WGPUInstance::new(SurfaceTarget::Canvas(el)).await;
-                info!("wgpu_instance created");
+        for (i, &v) in lines2.iter().enumerate() {
+            let id = format! {"canvas-{}", i};
+            if let Some(el) = get_canvas(&id) {
+                let (start, end) = v;
+                spawn(async move {
+                    let gpu = WGPUInstance::new(SurfaceTarget::Canvas(el)).await;
+                    info!("{} wgpu_instance created", id);
 
-                let line = LineSegment {
-                    start: Vertex {
-                        position: Vector3::new(-0.5, 0., 0.),
-                    },
-                    end: Vertex {
-                        position: Vector3::new(0.5, 0., 0.),
-                    },
-                };
-                let renderer = Renderer::new(&gpu, &line);
-                renderer.render(&gpu);
-            });
+                    let line = LineSegment {
+                        start: Vertex { position: start },
+                        end: Vertex { position: end },
+                    };
+                    let renderer = Renderer::new(&gpu, &line);
+                    renderer.render(&gpu);
+                });
+            } else {
+                info!("failed to find canvas.")
+            }
         }
     });
 
     rsx! {
-        div {
-            canvas { id: "line-canvas", width: 100, height: 100, class: "bg-blue" }
-        }
+            div {
+                class: "grid grid-cols-4 gap-4",
+                for (i, _) in lines.iter().enumerate() {
+                    canvas { id: format!("canvas-{}", i), width: 200, height: 200 }
+                }
+            }
+
     }
 }
 

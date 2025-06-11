@@ -1,18 +1,16 @@
-use bytemuck::{Pod, Zeroable};
 use dioxus::logger::tracing::info;
 use dioxus::prelude::*;
 use fundamentals_of_computer_graphics::math::Vector3;
-use play_wgpu::WGPUInstance;
-use web_sys::{wasm_bindgen::JsCast, window, HtmlCanvasElement};
+use play_wgpu::graphics::{Vertex, WGPUInstance};
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::wgt::{CommandEncoderDescriptor, TextureViewDescriptor};
-use wgpu::PrimitiveTopology::LineList;
+use wgpu::PrimitiveTopology::{LineList, PointList};
 use wgpu::{
-    include_wgsl, vertex_attr_array, BlendState, Buffer, BufferAddress, BufferUsages, Color,
+    include_wgsl, BlendState, Buffer, BufferUsages, Color,
     ColorTargetState, ColorWrites, FragmentState, LoadOp, Operations, PipelineLayoutDescriptor,
     PrimitiveState, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline,
-    RenderPipelineDescriptor, StoreOp, SurfaceTarget, VertexAttribute, VertexBufferLayout,
-    VertexState, VertexStepMode,
+    RenderPipelineDescriptor, StoreOp, SurfaceTarget,
+    VertexState,
 };
 
 #[derive(Debug, Clone, Routable, PartialEq)]
@@ -78,7 +76,7 @@ pub fn Lines() -> Element {
         // canvas.set(get_canvas("line-canvas"));
         for (i, &v) in lines2.iter().enumerate() {
             let id = format! {"canvas-{}", i};
-            if let Some(el) = get_canvas(&id) {
+            if let Some(el) = play_wgpu::get_canvas(&id) {
                 let (start, end) = v;
                 spawn(async move {
                     let gpu = WGPUInstance::new(SurfaceTarget::Canvas(el)).await;
@@ -105,31 +103,6 @@ pub fn Lines() -> Element {
                 }
             }
 
-    }
-}
-
-fn get_canvas(id: &str) -> Option<HtmlCanvasElement> {
-    window().and_then(|win| win.document()).and_then(|doc| {
-        doc.get_element_by_id(id)
-            .and_then(|el| el.dyn_into::<HtmlCanvasElement>().ok())
-    })
-}
-
-#[repr(C)]
-#[derive(Pod, Zeroable, Copy, Clone, Debug)]
-pub struct Vertex {
-    pub position: Vector3,
-}
-
-impl Vertex {
-    const ATTRIBS: [VertexAttribute; 1] = vertex_attr_array![0 => Float32x2];
-
-    pub fn desc() -> VertexBufferLayout<'static> {
-        VertexBufferLayout {
-            array_stride: size_of::<Self>() as BufferAddress,
-            step_mode: VertexStepMode::Vertex,
-            attributes: &Self::ATTRIBS,
-        }
     }
 }
 

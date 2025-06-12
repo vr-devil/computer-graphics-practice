@@ -33,7 +33,7 @@ impl Vector3 {
     }
 
     pub fn norm(&self) -> f32 {
-        (self.x.powi(2) + self.y.powi(2) + self.z.powi(2)).sqrt()
+        self.dot(self).sqrt()
     }
 
     pub fn dot(&self, rhs: &Self) -> f32 {
@@ -243,6 +243,13 @@ mod test_vector3 {
         assert_eq!(-&x, z.cross(&y));
         assert_eq!(-&y, x.cross(&z));
         assert_eq!(-&z, y.cross(&x));
+    }
+
+    #[test]
+    fn test_norm() {
+        let a = Vector3::new(1., 0., 0.);
+        let b = Vector3::new(2., 0., 0.);
+        assert_eq!((&b-&a).norm(), 1.);
     }
 }
 
